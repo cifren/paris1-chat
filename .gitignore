@@ -1,1 +1,5 @@
 node_modules/
+build/
+server/config.js
+client/config.js
+client/bundle.js

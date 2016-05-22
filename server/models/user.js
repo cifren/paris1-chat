@@ -33,6 +33,14 @@ var UserSchema = mongoose.Schema({
     type: String,
     required: false
   },
+  service: [{
+    type: String,
+    required: false
+  }],
+  direction: [{
+    type: String,
+    required: false
+  }],
   rooms: [{
     type: ObjectId,
     ref: 'Room'

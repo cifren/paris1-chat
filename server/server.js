@@ -1,6 +1,7 @@
 'use strict';
 
 // Configuration
+var config = require('./config');
 var reverse_proxy_auth = true;
 var avatar_url = "https://photo-ldap.univ-paris1.fr/ldap.php?test=1&uid=";
 
@@ -10,7 +11,8 @@ var server   = require('http').createServer(),
 io       = require('socket.io').listen(server),
 mongoose = require('mongoose'),
 request  = require('request'),
-fs       = require('fs');
+fs       = require('fs'),
+LDAP     = require('ldap-client');
 
 var users = {}, socks = {}, files = {};
 
@@ -20,77 +22,140 @@ Preference = require('./models/preference'),
 Message    = require('./models/message'),
 Room       = require('./models/room');
 
-function checkCustomPref(userPref){
-  var default_pref = {
-    'lang': 'fr',
-    'theme': 'paris1-ent',
-    'sound': true
-  };
+// LDAP Search for structures
+var structures = {};
+var ldap = new LDAP({
+    uri: config.ldap.uri,
+    base: config.ldap.base,
+    scope: config.ldap.scope,
+    filter: config.ldap.filter,
+    attrs: config.ldap.attrs,
+    connecttimeout: 5
+});
 
-  if (userPref.custom_message) return true;
-  for (var pref in default_pref){
-    if (userPref[pref] !== default_pref[pref]){
-      return true;
-    }
+ldap.bind({
+  binddn: config.ldap.binddn,
+  password: config.ldap.password
+  },
+  function(err){
+    if (err) return console.log(err);
+    ldap.search({}, function(err, data){
+      if (err) return console.log(err);
+      createStructures(data);
+      // Update structures every hours
+      setInterval(function(){
+        ldap.search({}, function(err, data){
+          if (err) return console.log(err);
+          createStructures(data);
+        });
+      }, 3600000);
+    });
+});
+
+function createStructures(data){
+  for (var str in data){
+    structures[data[str].supannCodeEntite[0]] = data[str].ou && data[str].ou[0] || data[str].supannCodeEntite[0];
   }
 }
 
-// Generate url for avatar purpose
 function get_avatar_url(user) {
   var ldapUid = user.split('@')[0];
   return avatar_url + ldapUid;
 }
 
-function addUserToChat(socket, user, fn){
-
-    if (typeof fn !== 'undefined') {
-      fn(JSON.stringify( {'login': 'successful', 'my_settings': {
-        'uid': user._id,
-        'user': user.user,
-        'name': user.displayName,
-        'status': user.status,
-        'avatar': user.avatar,
-        'service': user.service,
-        'favorites': user.favorites
-        }
-      }));
-    }
-
-    // If there is users online, send the list of them
-    if (Object.keys(users).length > 0)
-      socket.emit('chat', JSON.stringify( { 'action': 'usrlist', 'user': users } ));
-
-    // If user has a fav list, send the list of them
-    if (user.favorites.length > 0){
-      User.find({_id: {$in: user.favorites}}, function(err, fav_users){
-        if (err) return console.log(err);
-        var favlist = [];
-        for (var i in fav_users){
-          favlist[i] = {uid: fav_users[i]._id, user: fav_users[i].user, name: fav_users[i].displayName, status: fav_users[i].status}
-        }
-        socket.emit('chat', JSON.stringify({'action': 'favlist', 'favorites': favlist}));
-      });
-    }
-
-    socket.user = user.user;
-    users[socket.user] = {'uid': user._id, 'user': socket.user, 'name': user.displayName, 'status': user.status, 'avatar': user.avatar, 'service': user.service}
-    socks[socket.user] = {'socket': socket}
-
-    // Send new user is connected to everyone
-    socket.broadcast.emit('chat', JSON.stringify( {'action': 'newuser', 'user': users[socket.user]} ));
+function getDirection(service){
+  if (service.length < 4)
+    return service
+  else
+    return service.substring(0, 3);
 }
 
-//Handle users
-io.sockets.on('connection', function (socket) {
+function sendUserInfo(socket, user, fn){
 
+}
+
+function sendDirectionList(socket, user){
+  var directionList = {};
+  for (var usr in users){
+    if (users[usr].uid == user.uid) continue;
+    if (users[usr].direction[0] == user.direction[0]){
+      console.log(users[usr]);
+      directionList[usr] = {
+        'uid': users[usr].uid,
+        'user': users[usr].user,
+        'name': users[usr].name,
+        'status': users[usr].status,
+        'avatar': users[usr].avatar,
+        'service': users[usr].service,
+        'direction': users[usr].direction
+      };
+    }
+  }
+  if (Object.keys(directionList).length > 0)
+    socket.emit('chat', JSON.stringify({'action': 'direction_list', 'data': directionList}));
+}
+
+function sendFavList(socket, user){
+  if (user.favorites.length > 0){
+    var favList = {};
+    User.find({_id: {$in: user.favorites}}, function(err, fav_list){
+      if (err) return console.log(err);
+      for (var i in fav_list){
+        favList[fav_list[i]._id] = {
+          'uid': fav_list[i]._id,
+          'user': fav_list[i].user,
+          'name': fav_list[i].displayName,
+          'status': users[fav_list[i]._id] && users[fav_list[i]._id].status || 'offline',
+          'avatar': fav_list[i].avatar,
+          'service': fav_list[i].service,
+          'direction': fav_list[i].direction
+        };
+      }
+      if (Object.keys(favList).length > 0)
+        socket.emit('chat', JSON.stringify({'action': 'fav_list', 'data': favList}));
+    });
+  }
+}
+
+function addUserToChat(socket, user, fn){
+
+  var user_settings = {
+    'uid': user._id,
+    'user': user.user,
+    'name': user.displayName,
+    'status': user.status,
+    'avatar': user.avatar,
+    'service': user.service,
+    'direction': user.direction,
+    'favorites': user.favorites
+  };
+
+  if (typeof fn !== 'undefined') {
+    fn(JSON.stringify( {'login': 'successful', 'user_props': user_settings}));
+  }
+
+  sendDirectionList(socket, user_settings);
+  sendFavList(socket, user_settings);
+
+
+  socket.user = user_settings.uid;
+  users[socket.user] = user_settings;
+  socks[socket.user] = {'socket': socket};
+
+  // Send new user is connected to everyone
+  socket.broadcast.emit('chat', JSON.stringify( {'action': 'new_user', 'user': users[socket.user]} ));
+}
+
+io.on('connection', function(socket){
   // Event received by new user
-  socket.on('join', function (recv, fn) {
+  socket.on('join', function (fn) {
 
+    var recv = {};
     if (reverse_proxy_auth) {
       // Shibboleth auth using handshake's http headers
-      recv.user = socket.manager.handshaken[socket.id].headers && socket.manager.handshaken[socket.id].headers.eppn;
-      recv.name = socket.manager.handshaken[socket.id].headers && socket.manager.handshaken[socket.id].headers.displayname;
-      recv.service = socket.manager.handshaken[socket.id].headers && socket.manager.handshaken[socket.id].headers.supannentiteaffectationprincipale;
+      recv.user = socket.handshake.headers.eppn;
+      recv.displayName = socket.handshake.headers.displayname;
+      recv.service = socket.handshake.headers.supannentiteaffectationprincipale;
     }
 
     if (!recv.user) {
@@ -106,10 +171,10 @@ io.sockets.on('connection', function (socket) {
           if (err) console.log(err);
           var newUser = new User({
             user: recv.user,
-            displayName: recv.name,
-            service: recv.service,
-            preferences: pref,
-            avatar: get_avatar_url(recv.user)
+            displayName: recv.displayName,
+            avatar: get_avatar_url(recv.user),
+            service: [recv.service, structures[recv.service]],
+            direction: [getDirection(recv.service), structures[getDirection(recv.service)]]
           });
           newUser.save(function(err, newUser) {
             if (err) return console.log(err);
@@ -117,24 +182,19 @@ io.sockets.on('connection', function (socket) {
           });
         });
       }
+      // Already registered user
       else {
-        // The user is already logged
-        // if (users[recv.user]) {
-        //   socket.emit('custom_error', { message: 'The user '+ recv.user +' is already logged' });
-        //   return;
-        // }
-
-        //Envoyer les préférences de l'utilisateur
         Preference.findById(user.preferences, function(err, pref){
           if (err) return console.log(err);
-          if (checkCustomPref(pref)) socket.emit('preferences', JSON.stringify(pref));
+          socket.emit('preferences', JSON.stringify(pref));
         });
 
-        if (recv.name != user.displayName)
-          user.displayName = recv.name;
-        if (recv.service != user.service)
-          user.service = recv.service;
-        user.status = 'online';
+        if (recv.displayName != user.displayName)
+          user.displayName = recv.displayName;
+        if (recv.service != user.service){
+            user.service = [recv.service, structures[recv.service]];
+            user.direction = [getDirection(recv.service), structures[getDirection(recv.service)]];
+        }
         user.save(function(err, user){
           if(err) return console.log(err);
           addUserToChat(socket, user, fn);
@@ -147,15 +207,7 @@ io.sockets.on('connection', function (socket) {
   socket.on('user_status', function (recv) {
     if (users[socket.user]) {
       users[socket.user].status = recv.status;
-      console.log(recv);
-      // Sauvegarde le nouveau status en base
-      User.findOne({user: users[socket.user].user}, function(err, user){
-        if (err) return console.log(err);
-        user.status = recv.status;
-        user.save(function(err, updated_user){
-          socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_status', 'user': users[socket.user]} ));
-        });
-      });
+      socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_status', 'user': users[socket.user]} ));
     }
   });
 
@@ -193,11 +245,7 @@ io.sockets.on('connection', function (socket) {
   // Event received when user has disconnected
   socket.on('disconnect', function () {
     if (users[socket.user]) {
-      socket.broadcast.emit('chat', JSON.stringify( {'action': 'disconnect', 'user': users[socket.user]} ));
-      var status_disconnected = {status: 'offline'};
-      User.update({_id: users[socket.user].uid}, {$set: status_disconnected}, function(err, updatedDoc){
-        if(err) return console.log(err);
-      });
+      socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_disconnected', 'user': users[socket.user]} ));
       delete users[socket.user];
       delete socks[socket.user];
     }
@@ -217,14 +265,14 @@ io.sockets.on('connection', function (socket) {
       else {
         User.find({_id: {$in: recv}}, function(err, tab_users){
           if (err) return console.log(err);
-          var users = {};
-          for (var user in tab_users){
-            users[tab_users[user]._id] = {displayName: tab_users[user].displayName, avatar: tab_users[user].avatar};
-          }
+          // var users = {};
+          // for (var user in tab_users){
+          //   users[tab_users[user]._id] = {displayName: tab_users[user].displayName, avatar: tab_users[user].avatar};
+          // }
           Message.find({room: room._id}, function(err, messages){
             if (err) return console.log(err);
             if (typeof fn !== 'undefined')
-              fn(JSON.stringify({'room': room._id, 'messages': messages, 'users': users}));
+              fn(JSON.stringify({'room': room._id, 'messages': messages}));
           });
         });
       }
@@ -242,7 +290,7 @@ io.sockets.on('connection', function (socket) {
     }
   });
 
-  socket.on('favorite', function(recv, fn) {
+  socket.on('manage_fav_list', function(recv, fn) {
     if (users[socket.user]){
       User.findById(users[socket.user].uid, function(err, user){
         if (err) return console.log(err);
@@ -254,9 +302,9 @@ io.sockets.on('connection', function (socket) {
           user.favorites.splice(index, 1);
         }
         user.save(function(err, updated_user){
-          if(err) return console.log(err);
+          if (err) return console.log(err);
           if (typeof fn !== 'undefined')
-            fn(JSON.stringify({successful: true, favorites: updated_user.favorites}));
+            fn(JSON.stringify({successful: true, newFavList: updated_user.favorites}));
         });
       });
     }
@@ -264,13 +312,23 @@ io.sockets.on('connection', function (socket) {
 
   socket.on('search', function(recv, fn) {
     if (users[socket.user]){
-      User.find({'displayName': {'$regex': new RegExp(recv.filter, "i")}}, function(err, results){
+      console.log(recv);
+      User.find({'displayName': {'$regex': new RegExp(recv, "i")}}, function(err, results){
         if (err) return console.log(err);
 
-        var users_found = [];
-        for (var i in results)
-          users_found[i] = {uid: results[i]._id, user: results[i].user, name: results[i].displayName, status: results[i].status}
-
+        var users_found = {};
+        for (var usr in results){
+          if (results[usr]._id == users[socket.user].uid) continue;
+          users_found[results[usr]._id] = {
+            'uid': results[usr]._id,
+            'user': results[usr].user,
+            'name': results[usr].displayName,
+            'status': results[usr].status,
+            'avatar': results[usr].avatar,
+            'service': results[usr].service,
+            'direction': results[usr].direction
+          }
+        }
         if (typeof fn !== 'undefined')
           fn(JSON.stringify({successful: true, users_found}))
       });
