@@ -79,7 +79,6 @@ function sendDirectionList(socket, user){
   for (var usr in users){
     if (users[usr].uid == user.uid) continue;
     if (users[usr].direction[0] == user.direction[0]){
-      console.log(users[usr]);
       directionList[usr] = {
         'uid': users[usr].uid,
         'user': users[usr].user,
@@ -205,17 +204,18 @@ io.on('connection', function(socket){
 
   // Event received when user want change his status
   socket.on('user_status', function (recv) {
-    if (users[socket.user]) {
+    User.update({_id: recv.uid}, {$set: {status: recv.status}}, function(err, updated_user){
+      if (err) return console.log(err);
       users[socket.user].status = recv.status;
-      socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_status', 'user': users[socket.user]} ));
-    }
+      socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_change_status', 'user': users[socket.user]} ));
+    });
   });
 
   // Event received when user is typing
   socket.on('user_typing', function (recv) {
     var id = socks[recv.user] && socks[recv.user].socket.id;
     if (typeof id !== 'undefined')
-      io.sockets.socket(id).emit('chat', JSON.stringify( {'action': 'user_typing', 'data': users[socket.user]} ));
+      socks[recv.user].emit('chat', JSON.stringify( {'action': 'user_typing', 'data': users[socket.user]} ));
   });
 
   // Event received when user send message to another
@@ -229,14 +229,14 @@ io.on('connection', function(socket){
         var newMessage = new Message({
           room: room._id,
           owner: users[socket.user].uid,
-          text: recv.msg
+          text: recv.text
         }).save(function(err, newMessage){
           if (err) return console.log(err);
           if (typeof fn !== 'undefined')
-            fn(JSON.stringify( {'ack': 'true', 'date': newMessage.posted} ));
-          var id = socks[recv.user] && socks[recv.user].socket.id;
-          if (typeof id !== 'undefined')
-            io.sockets.socket(id).emit('chat', JSON.stringify( {'action': 'message', 'data': {'msg': newMessage.text, 'user': users[socket.user]}, 'date': newMessage.posted} ));
+            fn(JSON.stringify({successful: true, data: newMessage}));
+          var id = socks[recv.receiver] && socks[recv.receiver].socket.id;
+          if (typeof socks[recv.receiver] !== 'undefined')
+            socks[recv.receiver].socket.emit('chat', JSON.stringify( {'action': 'message', 'data': newMessage}));
         });
       }
     });
@@ -251,7 +251,7 @@ io.on('connection', function(socket){
     }
   });
 
-  socket.on('load_room', function(recv, fn) {
+  socket.on('load_room_users', function(recv, fn) {
     //Charge une room quand on clique sur un utilisateur
     Room.findOne({users: recv}, function(err, room){
       if(err) return console.log(err);
@@ -263,19 +263,43 @@ io.on('connection', function(socket){
         });
       }
       else {
-        User.find({_id: {$in: recv}}, function(err, tab_users){
+        Message.find({room: room._id}, function(err, messages){
           if (err) return console.log(err);
-          // var users = {};
-          // for (var user in tab_users){
-          //   users[tab_users[user]._id] = {displayName: tab_users[user].displayName, avatar: tab_users[user].avatar};
-          // }
-          Message.find({room: room._id}, function(err, messages){
-            if (err) return console.log(err);
-            if (typeof fn !== 'undefined')
-              fn(JSON.stringify({'room': room._id, 'messages': messages}));
-          });
+          if (typeof fn !== 'undefined')
+            fn(JSON.stringify({'room': room._id, 'messages': messages}));
         });
       }
+    });
+  });
+
+  socket.on('load_room_id', function(recv, fn) {
+    var fn_data = {room: recv};
+    Room.findById(recv, function(err, room){
+      if (err) return console.log(err);
+      User.find({_id: {$in: room.users}}, function(err, users){
+        if (err) return console.log(err);
+        for (var i in users){
+          if (users[i]._id === socket.user){
+            users.splice(i, 1);
+            continue;
+          }
+          delete users[i].favorites;
+          delete users[i].room;
+          users[i].uid = users[i]._id;
+          users[i].name = users[i].displayName;
+          delete users[i]._id;
+          delete users[i].displayName;
+        }
+        fn_data.penpal = users[0];
+        Message.find({room: room._id}, function(err, messages){
+          if (err) return console.log(err);
+          fn_data.messages = messages;
+          if (typeof fn !== 'undefined'){
+            console.log(fn_data);
+            fn(JSON.stringify(fn_data));
+          }
+        });
+      });
     });
   });
 
@@ -312,18 +336,16 @@ io.on('connection', function(socket){
 
   socket.on('search', function(recv, fn) {
     if (users[socket.user]){
-      console.log(recv);
       User.find({'displayName': {'$regex': new RegExp(recv, "i")}}, function(err, results){
         if (err) return console.log(err);
-
         var users_found = {};
         for (var usr in results){
-          if (results[usr]._id == users[socket.user].uid) continue;
+          if (String(results[usr]._id) === String(users[socket.user].uid)) continue;
           users_found[results[usr]._id] = {
             'uid': results[usr]._id,
             'user': results[usr].user,
             'name': results[usr].displayName,
-            'status': results[usr].status,
+            'status': users[results[usr]._id] && users[results[usr]._id].status || "offline",
             'avatar': results[usr].avatar,
             'service': results[usr].service,
             'direction': results[usr].direction

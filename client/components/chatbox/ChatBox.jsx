@@ -25,7 +25,7 @@ class ChatBox extends React.Component {
       <div className="chat-window">
         <div className="col-xs-12 col-md-12">
           <div className="panel panel-default">
-            <ChatBoxHeader status={this.props.user.status}/>
+            <ChatBoxHeader minimised={this.state.minimised} status={this.props.user.status}/>
             {chatBoxBody}
             {chatBoxFooter}
           </div>

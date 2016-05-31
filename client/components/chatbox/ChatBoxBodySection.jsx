@@ -24,7 +24,7 @@ class ChatBoxBodySection extends React.Component {
 
   render() {
     let content;
-    if (this.state.onlineUsers > 0){
+    if (Object.keys(this.props.list).length > 0){
       content = Object.keys(this.props.list).map((user, i) => {
         return <UserButton user={this.props.list[user]} key={i}/>
       });

@@ -1,9 +1,10 @@
-import {config} from '../config.js'
+import config from './../config.js'
 import React from 'react';
 import ReactDOM from 'react-dom';
 import io from 'socket.io-client';
 import MsgBox from './msgbox/MsgBox.jsx';
 import ChatBox from './chatbox/ChatBox.jsx';
+import DropUpMsgBox from './core/DropUpMsgBox.jsx';
 
 class Chat extends React.Component {
 
@@ -15,21 +16,26 @@ class Chat extends React.Component {
       searchList: {},
       searchState: false,
       activeRooms: {},
-      user: {status: 'offline'}
+      user: {status: 'offline'},
+      windowWidth: window.innerWidth
     };
     this.socketManager = this.socketManager.bind(this);
     this.setStatus = this.setStatus.bind(this);
     this.socketEventListener = this.socketEventListener.bind(this);
     this.disconnectUser = this.disconnectUser.bind(this);
     this.connectUser = this.connectUser.bind(this);
-    this.loadMsgBox = this.loadMsgBox.bind(this);
+    this.loadMsgBoxFromUser = this.loadMsgBoxFromUser.bind(this);
+    this.loadMsgBoxFromRoom = this.loadMsgBoxFromRoom.bind(this);
     this.manageFavList = this.manageFavList.bind(this);
-    this.changeSearchState = this.changeSearchState.bind(this);
     this.updateSearchList = this.updateSearchList.bind(this);
     this.closeRoom = this.closeRoom.bind(this);
-    this.minimizeRoom = this.minimizeRoom.bind(this);
+    this.minimizeMsgBox = this.minimizeMsgBox.bind(this);
     this.sendMessage = this.sendMessage.bind(this);
     this.uploadFile = this.uploadFile.bind(this);
+    this.changeStatusUser = this.changeStatusUser.bind(this);
+    this.addMessageToRoom = this.addMessageToRoom.bind(this);
+    this.handleResize = this.handleResize.bind(this);
+    this.changeDisplayOrder = this.changeDisplayOrder.bind(this);
   }
 
   connectToServer(){
@@ -39,16 +45,16 @@ class Chat extends React.Component {
   componentDidMount() {
     // DOM events
     window.addEventListener('connect_button', this.socketManager);
-    window.addEventListener('dropdown_status', this.setStatus);
-    window.addEventListener('user_button', this.loadMsgBox);
+    window.addEventListener('change_status', this.setStatus);
+    window.addEventListener('user_button', this.loadMsgBoxFromUser);
     window.addEventListener('fav_button', this.manageFavList);
-    window.addEventListener('search_focus', this.changeSearchState);
-    window.addEventListener('search_blur', this.changeSearchState);
     window.addEventListener('search_keypress', this.updateSearchList);
     window.addEventListener('close_room', this.closeRoom);
-    window.addEventListener('minimize_room', this.minimizeRoom);
+    window.addEventListener('minimize_room', this.minimizeMsgBox);
     window.addEventListener('send_message', this.sendMessage);
     window.addEventListener('upload_file', this.uploadFile);
+    window.addEventListener('resize', this.handleResize);
+    window.addEventListener('change_display_order', this.changeDisplayOrder);
   }
 
   socketManager(){
@@ -83,10 +89,8 @@ class Chat extends React.Component {
       switch (recv.action){
         case 'direction_list':
           this.setState({directionList: recv.data});
-          console.log(this.state.directionList);
           break;
         case 'fav_list':
-          console.log('favlist : ' + recv.data);
           this.setState({favList: recv.data});
           break;
         case 'new_user':
@@ -95,8 +99,10 @@ class Chat extends React.Component {
         case 'user_typing':
           break;
         case 'user_change_status':
+          this.changeStatusUser(recv.user);
           break
         case 'message':
+          this.addMessageToRoom(recv.data);
           break
         case 'user_disconnected':
           this.disconnectUser(recv.user);
@@ -106,8 +112,29 @@ class Chat extends React.Component {
   }
 
   setStatus(event){
-    this.socket.emit('user_status', event.detail);
-    this.setState({user: {status: event.detail}});
+    let newStatus = event.detail;
+    if (this.state.user.status != newStatus){
+      this.state.user.status = newStatus;
+      this.setState({user: this.state.user})
+      this.socket.emit('user_status', this.state.user);
+    }
+  }
+
+  changeStatusUser(user){
+    if (this.state.directionList[user.uid]){
+      this.state.directionList[user.uid] = user;
+      this.setState({directionList: this.state.directionList});
+    }
+    if (this.state.favList[user.uid]){
+      this.state.favList[user.uid] = user;
+      this.setState({favList: this.state.favList});
+    }
+    Object.keys(this.state.activeRooms).map((room) => {
+      if (user.uid === this.state.activeRooms[room].penpal.uid){
+        this.state.activeRooms[room].penpal.status = user.status;
+        this.setState({activeRooms: this.state.activeRooms});
+      }
+    });
   }
 
   connectUser(user){
@@ -138,15 +165,17 @@ class Chat extends React.Component {
     });
   }
 
-  loadMsgBox(event){
+  loadMsgBoxFromUser(event){
     let penpal = event.detail;
-    this.socket.emit('load_room', [this.state.user.uid, penpal.uid].sort(), function(data){
+    this.socket.emit('load_room_users', [this.state.user.uid, penpal.uid].sort(), function(data){
       let room = JSON.parse(data);
       if (!this.state.activeRooms[room.room]){
         penpal.isFav = (this.state.favList[penpal.uid]) ? true : false;
         room.penpal = penpal;
         this.state.activeRooms[room.room] = room;
+        this.state.activeRooms[room.room].displayOrder = Object.keys(this.state.activeRooms).length;
         this.setState({activeRooms: this.state.activeRooms});
+        this.scrollDivToBottom(room.room);
       }
     }.bind(this));
   }
@@ -179,53 +208,131 @@ class Chat extends React.Component {
     }.bind(this));
   }
 
-  changeSearchState(event){
-    let action = event.type;
-    let newSearchState = (action === 'search_focus') ? true : false;
-    this.setState({searchState: newSearchState});
-  }
-
   updateSearchList(event){
     let search = event.detail.search;
-    console.log(search);
-    this.socket.emit('search', search, function(data){
-      console.log(data);
-      let recv = JSON.parse(data);
-      if (recv.successful){
-        this.setState({searchList: recv.users_found});
-      }
-    }.bind(this));
+    let updateSearchState = (search.length === 0) ? false : true;
+    if (this.state.searchState != updateSearchState) this.setState({searchState: updateSearchState});
+    if (this.state.searchState){
+      this.socket.emit('search', search, function(data){
+        let recv = JSON.parse(data);
+        if (recv.successful){
+          this.setState({searchList: recv.users_found});
+        }
+      }.bind(this));
+    }
   }
 
   closeRoom(event){
     let roomId = event.detail.room;
     if (this.state.activeRooms[roomId]){
       delete this.state.activeRooms[roomId];
+      if (Object.keys(this.state.activeRooms).length > 0){
+        Object.keys(this.state.activeRooms).map((room) => {
+          if (this.state.activeRooms[room].displayOrder > 1){
+            this.state.activeRooms[room].displayOrder -= 1;
+          }
+        });
+      }
       this.setState({activeRooms: this.state.activeRooms});
     }
   }
 
-  minimizeRoom(event){
-
+  minimizeMsgBox(event){
+    let roomId = event.detail.room;
+    this.state.activeRooms[roomId].minimised = (this.state.activeRooms[roomId].minimised) ? false : true;
+    this.setState({activeRooms: this.state.activeRooms});
   }
 
-  sendMessage(){
-
+  sendMessage(event){
+    let message = event.detail;
+    message.text = message.text.substring(0, message.text.length - 1);
+     this.socket.emit('message', message, function(data){
+      let recv = JSON.parse(data);
+      if (recv.successful){
+        this.addMessageToRoom(recv.data);
+      }
+     }.bind(this));
   }
 
   uploadFile(){
 
   }
 
-  render(){
-    let activeRooms = Object.keys(this.state.activeRooms).map((room) => {
-        return <MsgBox user={this.state.user} room={this.state.activeRooms[room]} key={room}/>
+  scrollDivToBottom(id){
+    if (document.getElementById(id)){
+      let div = document.getElementById(id).getElementsByClassName('panel-body')[0];
+      div.scrollTop = div.scrollHeight;
+    }
+  }
+
+  playNewMessageSound(message){
+    if (message.owner !== this.state.user.uid){
+      let audio = new Audio('./../sounds/popup.mp3');
+      audio.play();
+    }
+  }
+
+  loadMsgBoxFromRoom(message){
+    let roomId = message.room;
+    this.socket.emit('load_room_id', roomId, function(data){
+      let room = JSON.parse(data);
+      this.state.activeRooms[room.room] = room;
+      this.state.activeRooms[room.room].penpal.isFav = (this.state.favList[this.state.activeRooms[room.room].penpal.uid]) ? true : false;
+      this.state.activeRooms[room.room].displayOrder = Object.keys(this.state.activeRooms).length;
+      this.setState({activeRooms: this.state.activeRooms});
+      this.scrollDivToBottom(roomId);
+      this.playNewMessageSound(message);
+    }.bind(this));
+  }
+
+  addMessageToRoom(message){
+    if (!this.state.activeRooms[message.room]){
+      this.loadMsgBoxFromRoom(message);
+    }
+    else {
+      this.state.activeRooms[message.room].messages.push(message);
+      this.setState({activeRooms: this.state.activeRooms});
+      this.scrollDivToBottom(message.room);
+      this.playNewMessageSound(message);
+    }
+  }
+
+  handleResize(){
+    this.setState({windowWidth: window.innerWidth});
+  }
+
+  changeDisplayOrder(event){
+    let roomId = event.detail;
+    this.state.activeRooms[roomId].displayOrder = 1;
+    Object.keys(this.state.activeRooms).map((room) => {
+      if (room !== roomId){
+        this.state.activeRooms[room].displayOrder += 1;
+      }
     });
+    this.setState({activeRooms: this.state.activeRooms});
+  }
+
+  render(){
+    let hiddenRooms = {};
+    let numDisplayableRooms = Math.floor(this.state.windowWidth / 300) - 1;
+    let activeRooms = Object.keys(this.state.activeRooms).map((room) => {
+        if (this.state.activeRooms[room].displayOrder <= numDisplayableRooms){
+          return <MsgBox user={this.state.user} room={this.state.activeRooms[room]} key={room}/>
+        }
+        else {
+          hiddenRooms[room] = this.state.activeRooms[room];
+        }
+    });
+    let dropUpRooms;
+    if (Object.keys(hiddenRooms).length > 0){
+      dropUpRooms = <DropUpMsgBox rooms={hiddenRooms} />
+    }
     return (
       <div>
         <ChatBox user={this.state.user} directionList={this.state.directionList} favList={this.state.favList}
         searchState={this.state.searchState} searchList={this.state.searchList} />
         {activeRooms}
+        {dropUpRooms}
       </div>
     )
   }

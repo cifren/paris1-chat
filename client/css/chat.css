@@ -25,7 +25,6 @@ body{
 .msg-window{
   width: 300px;
   bottom:0;
-  right:350;
   position:fixed;
   float:right;
   margin-left:10px;
@@ -45,7 +44,7 @@ body{
   color: white;
   padding: 10px;
   position: relative;
-  overflow: hidden;
+  height: 35px;
 }
 
 .top-bar-main {
@@ -61,7 +60,6 @@ body{
   margin-left:0;
 }
 .msg_sent{
-  padding-bottom:20px !important;
   margin-right:0;
 }
 .messages {
@@ -239,13 +237,15 @@ img {
   outline: none;
 }
 
-.dropdown-menu{
-
-}
-
 .dropdown{
   padding: 0px;
   display: inline-block;
+}
+
+.dropup{
+  position: fixed;
+  bottom: 0px;
+  left : 10px;
 }
 
 .user_name{

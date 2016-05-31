@@ -2,12 +2,14 @@ var serverConfig = {
   auth: 'reverse_proxy',
   avatar_url: '',
   ldap: {
-    server: '',
+    uri: '',
     base: '',
-    scope: '',
+    scope: 1,
     filter: '',
-    attrs: ''
+    attrs: '',
+    binddn: '',
+    password: ''
   }
 };
 
-modules.export.serverConfig = serverConfig;
+module.exports = serverConfig;

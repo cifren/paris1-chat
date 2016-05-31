@@ -1,1 +1,1 @@
-import Chat from 'components/Chat.jsx';
+import Chat from './components/Chat.jsx';

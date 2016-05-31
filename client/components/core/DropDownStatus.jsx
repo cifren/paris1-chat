@@ -6,7 +6,16 @@ class DropDownStatus extends React.Component {
   }
   handleClick(e) {
     let selectedStatus = e.target.className;
-    window.dispatchEvent(new CustomEvent('dropdown_status', {detail: selectedStatus}));
+    if (selectedStatus.indexOf("online") > -1){
+      selectedStatus = "online";
+    }
+    else if (selectedStatus.indexOf("busy") > -1) {
+      selectedStatus = "busy";
+    }
+    else {
+      selectedStatus = "invisible";
+    }
+    window.dispatchEvent(new CustomEvent('change_status', {detail: selectedStatus}));
   }
   render() {
     return (
@@ -17,7 +26,7 @@ class DropDownStatus extends React.Component {
         <ul className="dropdown-menu" aria-labelledby="dropDownStatus">
           <li><a href="#" onClick={this.handleClick} className="online"><div className="status_icone dot_online"></div>Online</a></li>
           <li><a href="#" onClick={this.handleClick} className="busy"><div className="status_icone dot_busy"></div>Busy</a></li>
-          <li><a href="#" onClick={this.handleClick} className="invisible"><div className="status_icone dot_offline"></div>Invisible</a></li>
+          <li><a href="#" onClick={this.handleClick} className="offline"><div className="status_icone dot_offline"></div>Invisible</a></li>
         </ul>
       </div>
     );

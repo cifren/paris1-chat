@@ -15,16 +15,18 @@ class ChatBoxHeader extends React.Component {
     super(props);
   }
   render() {
+    let dropDown;
+    if (!this.props.minimised){
+      dropDown = <DropDownStatus />;
+    }
     return (
       <PanelHeader>
         <PanelHeaderTitleContainer>
           <UserStatus status={this.props.status}/>
-          <DropDownStatus />
+          {dropDown}
           <PanelHeaderTitle title="Chat Paris 1"/>
         </PanelHeaderTitleContainer>
         <PanelHeaderButtonContainer>
-          <ButtonOption />
-          <OptionModal />
           <ButtonMin />
           <ButtonDisconnect />
         </PanelHeaderButtonContainer>
