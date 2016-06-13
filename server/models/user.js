@@ -11,7 +11,7 @@ var UserSchema = mongoose.Schema({
     required: true,
     trim: true
   },
-  displayName: {
+  name: {
     type: String,
     required: true
   },
@@ -49,14 +49,6 @@ var UserSchema = mongoose.Schema({
     type: ObjectId,
     ref: 'User'
   }]
-});
-
-UserSchema.method('toJSON', function() {
-  return {
-    user: this.user,
-    displayName: this.displayName,
-    preferences: this.preferences
-  };
 });
 
 module.exports = mongoose.model('User', UserSchema);

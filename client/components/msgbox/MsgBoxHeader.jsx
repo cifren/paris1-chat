@@ -15,14 +15,13 @@ class MsgBoxHeader extends React.Component {
   }
   render() {
     return (
-      <PanelHeader>
+      <PanelHeader box={this.props.room.room}>
         <PanelHeaderTitleContainer>
           <UserStatus status={this.props.room.penpal.status}/>
           <PanelHeaderTitle title={this.props.room.penpal.name}/>
         </PanelHeaderTitleContainer>
         <PanelHeaderButtonContainer>
           <ButtonFav room={this.props.room}/>
-          <ButtonMin room={this.props.room}/>
           <ButtonClose room={this.props.room}/>
         </PanelHeaderButtonContainer>
       </PanelHeader>

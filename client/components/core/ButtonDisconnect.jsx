@@ -5,6 +5,7 @@ class ButtonDisconnect extends React.Component {
     super();
   }
   handleClick(e){
+    e.stopPropagation();
     window.dispatchEvent(new Event('connect_button'));
   }
   render() {

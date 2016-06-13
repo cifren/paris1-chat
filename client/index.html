@@ -7,6 +7,18 @@
     <link href="css/chat.css" rel="stylesheet">
   </head>
   <body>
+    <script type="text/javascript">
+      function enableChat(){
+        var chat = document.getElementById("app");
+        if (String(chat.style.display) === "none"){
+          chat.style.display = "block";
+        }
+        else {
+          chat.style.display = "none";
+        }
+      }
+    </script>
+    <button style="position: fixed; top: 10px; right: 10px" onclick="enableChat()" type="button" class="btn btn-default"><span class="glyphicon glyphicon-off"/></button>
     <div class="row">
         <div id="app"></div>
     </div>

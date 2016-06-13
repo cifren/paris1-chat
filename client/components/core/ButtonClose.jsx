@@ -5,7 +5,8 @@ class ButtonClose extends React.Component {
     super(props);
     this.handleClick = this.handleClick.bind(this);
   }
-  handleClick(){
+  handleClick(e){
+    e.stopPropagation();
     var evt = new CustomEvent('close_room', {detail: {room: this.props.room.room}});
     window.dispatchEvent(evt);
   }
