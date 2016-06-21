@@ -14,6 +14,7 @@ class Chat extends React.Component {
       directionList: {},
       favList: {},
       searchList: {},
+      roomList: {},
       searchState: false,
       activeRooms: {},
       user: {status: 'offline'},
@@ -37,6 +38,7 @@ class Chat extends React.Component {
     this.addMessageToRoom = this.addMessageToRoom.bind(this);
     this.handleResize = this.handleResize.bind(this);
     this.changeDisplayOrder = this.changeDisplayOrder.bind(this);
+    this.updateRoomListStatus = this.updateRoomListStatus.bind(this);
 
     this.connectToServer();
 
@@ -81,7 +83,8 @@ class Chat extends React.Component {
         user: {status: 'offline'},
         directionList: {},
         favList: {},
-        activeRooms: {}
+        activeRooms: {},
+        roomList: {}
       });
     }.bind(this));
     this.socket.on('chat', function(data){
@@ -97,7 +100,18 @@ class Chat extends React.Component {
           });
           this.setState({activeRooms: this.state.activeRooms});
           break;
+        case 'room_list':
+          this.setState({roomList: recv.data});
+          break;
+        case 'update_badge':
+          console.log(recv.data);
+          if (this.state.roomList[recv.data.room]){
+            this.state.roomList[recv.data.room].lastMessage.viewed = true;
+            this.setState({roomList: this.state.roomList});
+          }
+          break;
         case 'new_user':
+          console.log(recv);
           this.connectUser(recv.user);
           break;
         case 'user_typing':
@@ -139,9 +153,11 @@ class Chat extends React.Component {
         this.setState({activeRooms: this.state.activeRooms});
       }
     });
+    updateRoomListStatus(user, user.status);
   }
 
   connectUser(user){
+    console.log(user);
     if (this.state.user.uid !== user.uid && this.state.user.direction[0] === user.direction[0]){
       this.state.directionList[user.uid] = user;
       this.setState({directionList: this.state.directionList});
@@ -154,6 +170,16 @@ class Chat extends React.Component {
       if (user.uid === this.state.activeRooms[room].penpal.uid){
         this.state.activeRooms[room].penpal.status = user.status;
         this.setState({activeRooms: this.state.activeRooms});
+      }
+    });
+    this.updateRoomListStatus(user, user.status);
+  }
+
+  updateRoomListStatus(user, status){
+    Object.keys(this.state.roomList).map((room) => {
+      if (user.uid === this.state.roomList[room].penpal.uid){
+        this.state.roomList[room].penpal.status = status || 'offline';
+        this.setState({roomList: this.state.roomList});
       }
     });
   }
@@ -177,6 +203,7 @@ class Chat extends React.Component {
           this.setState({activeRooms: this.state.activeRooms});
         }
       });
+      this.updateRoomListStatus(user);
     }
   }
 
@@ -219,6 +246,10 @@ class Chat extends React.Component {
         }
       }.bind(this));
     }
+  }
+
+  updateRoomList(event){
+
   }
 
   closeRoom(event){
@@ -330,7 +361,7 @@ class Chat extends React.Component {
     return (
       <div>
         <ChatBox user={this.state.user} directionList={this.state.directionList} favList={this.state.favList}
-        searchState={this.state.searchState} searchList={this.state.searchList} state={this.state.chatBox} />
+        searchState={this.state.searchState} searchList={this.state.searchList} roomList={this.state.roomList} state={this.state.chatBox} />
         {activeRooms}
         {dropUpRooms}
       </div>

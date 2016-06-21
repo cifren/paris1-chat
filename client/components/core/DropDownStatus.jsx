@@ -1,4 +1,5 @@
 import React from 'react';
+import UserStatus from './UserStatus.jsx';
 
 class DropDownStatus extends React.Component {
   constructor(){
@@ -31,14 +32,12 @@ class DropDownStatus extends React.Component {
     return (
       <div onClick={this.stopPropagation} className="dropdown">
         <button className="btn btn-default dropdown-toggle" type="button" id="dropDownStatus" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
-          <span className="caret"></span>
+          <UserStatus status="online"/>En ligne <span className="caret"></span>
         </button>
         <ul className="dropdown-menu" aria-labelledby="dropDownStatus">
-          <li><a href="#" onClick={this.handleClickStatus} className="online"><div className="status_icone dot_online"></div>Online</a></li>
-          <li><a href="#" onClick={this.handleClickStatus} className="busy"><div className="status_icone dot_busy"></div>Busy</a></li>
+          <li><a href="#" onClick={this.handleClickStatus} className="online"><div className="status_icone dot_online"></div>En ligne</a></li>
+          <li><a href="#" onClick={this.handleClickStatus} className="busy"><div className="status_icone dot_busy"></div>Occupé</a></li>
           <li><a href="#" onClick={this.handleClickStatus} className="offline"><div className="status_icone dot_offline"></div>Invisible</a></li>
-          <li role="separator" className="divider"></li>
-          <li><a href="#" onClick={this.handleClickDisconnect}>Se déconnecter</a></li>
         </ul>
       </div>
     );

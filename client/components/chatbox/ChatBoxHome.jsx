@@ -2,7 +2,7 @@ import React from 'react';
 import PanelBody from '../core/PanelBody.jsx';
 import ChatBoxBodySection from './ChatBoxBodySection.jsx';
 
-class ChatBoxBody extends React.Component {
+class ChatBoxHome extends React.Component {
   constructor(props){
     super(props);
   }
@@ -22,14 +22,14 @@ class ChatBoxBody extends React.Component {
       }
     }
     return (
-      <PanelBody>
+      <div role="tabpanel" className="tab-pane fade active in" id="home">
         {offlineInfo}
         {searchList}
         {directionList}
         {favList}
-      </PanelBody>
+      </div>
     );
   }
 }
 
-export default ChatBoxBody;
+export default ChatBoxHome;

@@ -12,7 +12,8 @@ io       = require('socket.io').listen(server),
 mongoose = require('mongoose'),
 request  = require('request'),
 fs       = require('fs'),
-LDAP     = require('ldap-client');
+LDAP     = require('ldap-client'),
+async    = require('async');
 
 var users = {}, files = {};
 
@@ -113,6 +114,46 @@ function sendFavList(socket, user){
   });
 }
 
+function sendRoomList(socket, user){
+  var roomList = {};
+
+  var findData = function(room, callback){
+    async.parallel({
+      findPenpal: function(cb){
+        var penpalIndice = (String(room.users[0]) === String(user.uid)) ? 1 : 0;
+        User.findById(room.users[penpalIndice]).exec(cb);
+      },
+      findLastMessage: function(cb){
+        Message.findOne({room: room._id}).sort({posted: -1}).exec(cb);
+      }
+    },
+    function(err, result){
+      if (result.findLastMessage){
+        roomList[room._id] = {};
+        roomList[room._id].penpal = {
+          'uid': result.findPenpal._id,
+          'user': result.findPenpal.user,
+          'name': result.findPenpal.name,
+          'status': users[result.findPenpal._id] && users[result.findPenpal._id].status || 'offline',
+          'avatar': result.findPenpal.avatar,
+          'service': result.findPenpal.service,
+          'direction': result.findPenpal.direction
+        };
+        roomList[room._id].lastMessage = result.findLastMessage;
+      }
+      callback(err);
+    });
+  }
+
+  Room.find({users: user.uid}, function(err, room_list){
+    if (err) return console.log(err);
+    async.map(room_list, findData, function(err, result){
+      if (err) return console.log(err);
+      io.to(users[socket.user].uid).emit('chat', JSON.stringify({'action': 'room_list', 'data': roomList}));
+    });
+  });
+}
+
 function addUserToChat(socket, user, fn){
 
   var user_settings = {
@@ -134,6 +175,7 @@ function addUserToChat(socket, user, fn){
 
   sendDirectionList(socket, user_settings);
   sendFavList(socket, user_settings);
+  sendRoomList(socket, user_settings);
 
   socket.user = user_settings.uid;
   users[socket.user] = user_settings;
@@ -258,10 +300,19 @@ io.on('connection', function(socket){
         });
       }
       else {
-        Message.find({room: room._id}, function(err, messages){
+        Message.find({room: room._id}).sort({posted: 1}).exec(function(err, messages){
           if (err) return console.log(err);
-          if (typeof fn !== 'undefined')
+          if (typeof fn !== 'undefined'){
             fn(JSON.stringify({'room': room._id, 'messages': messages}));
+          }
+          var lastMessage = messages[messages.length - 1];
+          if (!lastMessage.viewed && String(lastMessage.owner) !== String(users[socket.user].uid)){
+            lastMessage.viewed = true;
+            lastMessage.save(function(err, updatedMessage){
+              if (err) return console.log(err);
+              io.to(users[socket.user].uid).emit('chat', JSON.stringify({'action': 'update_badge', 'data': {'room': room._id, 'lastMessage': updatedMessage}}));
+            });
+          }
         });
       }
     });

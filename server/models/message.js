@@ -24,6 +24,11 @@ var MessageSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
     index: true
+  },
+  viewed: {
+    type: Boolean,
+    default: false,
+    required: true
   }
 });
 

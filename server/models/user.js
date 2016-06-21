@@ -41,10 +41,6 @@ var UserSchema = mongoose.Schema({
     type: String,
     required: false
   }],
-  rooms: [{
-    type: ObjectId,
-    ref: 'Room'
-  }],
   favorites: [{
     type: ObjectId,
     ref: 'User'
