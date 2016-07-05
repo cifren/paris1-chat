@@ -2,10 +2,9 @@ import React from 'react';
 
 class Avatar extends React.Component {
   render() {
+    let photoStyle = {"backgroundImage": "url(" + this.props.url + ")"};
     return (
-      <div className="col-md-2 col-xs-2 avatar">
-        <img src={this.props.url} className=" img-responsive "/>
-      </div>
+      <div style={photoStyle} className="avatar"></div>
     );
   }
 }

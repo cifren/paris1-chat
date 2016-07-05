@@ -13,7 +13,7 @@ class RoomButton extends React.Component {
   render() {
     let lastMessage;
     if (this.props.message.owner === this.props.penpal.uid){
-      lastMessage = <p>{this.props.message.text}</p>;
+      lastMessage = (this.props.message.viewed) ? <p>{this.props.message.text}</p> : <b>{this.props.message.text}</b>;
     }
     else {
       lastMessage = <p><span className="glyphicon glyphicon-share-alt"></span> {this.props.message.text}</p>

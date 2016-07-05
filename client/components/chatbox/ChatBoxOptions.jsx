@@ -14,13 +14,14 @@ class ChatBoxOptions extends React.Component {
   render() {
     return (
       <div role="tabpanel" className="tab-pane fade" id="options">
-        <h5>
-          Mon statut : <DropDownStatus/>
+        <h5 className="title">
+          Options
         </h5>
         <h5>
-          Son :
-          <input type="radio" name="soundRadio" id="enableSound" value="enable"/>Activé
-          <input type="radio" name="soundRadio" id="disableSound" value="disable"/>Désactivé
+          Mon statut : <DropDownStatus />
+        </h5>
+        <h5>
+          Son : <DropDownStatus />
         </h5>
         <h5>
           <a href="#" target="_blank">Gérer la visibilité de ma photo.</a>

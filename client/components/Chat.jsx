@@ -17,17 +17,16 @@ class Chat extends React.Component {
       roomList: {},
       searchState: false,
       activeRooms: {},
+      activeRoom: {},
       user: {status: 'offline'},
-      windowWidth: window.innerWidth,
-      chatBox: {minimized: false}
+      chatBox: {minimized: false, currentTab: 'home'}
     };
     this.closeChat = this.closeChat.bind(this);
     this.setStatus = this.setStatus.bind(this);
     this.socketEventListener = this.socketEventListener.bind(this);
     this.disconnectUser = this.disconnectUser.bind(this);
     this.connectUser = this.connectUser.bind(this);
-    this.loadMsgBoxFromUser = this.loadMsgBoxFromUser.bind(this);
-    this.loadMsgBoxFromRoom = this.loadMsgBoxFromRoom.bind(this);
+    this.loadMsgBox = this.loadMsgBox.bind(this);
     this.manageFavList = this.manageFavList.bind(this);
     this.updateSearchList = this.updateSearchList.bind(this);
     this.closeRoom = this.closeRoom.bind(this);
@@ -36,9 +35,12 @@ class Chat extends React.Component {
     this.uploadFile = this.uploadFile.bind(this);
     this.changeStatusUser = this.changeStatusUser.bind(this);
     this.addMessageToRoom = this.addMessageToRoom.bind(this);
-    this.handleResize = this.handleResize.bind(this);
-    this.changeDisplayOrder = this.changeDisplayOrder.bind(this);
     this.updateRoomListStatus = this.updateRoomListStatus.bind(this);
+    this.updateActiveRoomStatus = this.updateActiveRoomStatus.bind(this);
+    this.clickOnTab = this.clickOnTab.bind(this);
+    this.messageViewed = this.messageViewed.bind(this);
+    this.updateBadge = this.updateBadge.bind(this);
+    this.userTyping = this.userTyping.bind(this);
 
     this.connectToServer();
 
@@ -46,11 +48,12 @@ class Chat extends React.Component {
 
   connectToServer(){
     this.socket = io.connect(config.server_uri, {reconnect: true});
-    this.socketEventListener();
     this.socket.emit('join', function (data) {
       let recv = JSON.parse(data);
-      if (recv.login === 'successful')
+      if (recv.login === 'successful'){
+        this.socketEventListener();
         this.setState({user: recv.user_props});
+      }
     }.bind(this));
   }
 
@@ -63,15 +66,18 @@ class Chat extends React.Component {
     // DOM events
     window.addEventListener('disconnect', this.closeChat);
     window.addEventListener('change_status', this.setStatus);
-    window.addEventListener('user_button', this.loadMsgBoxFromUser);
+    window.addEventListener('user_button', this.loadMsgBox);
     window.addEventListener('fav_button', this.manageFavList);
     window.addEventListener('search_keypress', this.updateSearchList);
     window.addEventListener('close_room', this.closeRoom);
     window.addEventListener('min_max_box', this.minMaxBox);
     window.addEventListener('send_message', this.sendMessage);
+    window.addEventListener('user_typing', this.userTyping);
     window.addEventListener('upload_file', this.uploadFile);
-    window.addEventListener('resize', this.handleResize);
     window.addEventListener('change_display_order', this.changeDisplayOrder);
+
+    //TODO : Ne pas utiliser Jquery
+    $('a[data-toggle="tab"]').on('shown.bs.tab', this.clickOnTab);
   }
 
   socketEventListener(){
@@ -84,6 +90,7 @@ class Chat extends React.Component {
         directionList: {},
         favList: {},
         activeRooms: {},
+        activeRoom: {},
         roomList: {}
       });
     }.bind(this));
@@ -95,26 +102,22 @@ class Chat extends React.Component {
           break;
         case 'fav_list':
           this.setState({favList: recv.data});
-          Object.keys(this.state.activeRooms).map((room) => {
-            this.state.activeRooms[room].penpal.isFav = (this.state.favList[this.state.activeRooms[room].penpal.uid]) ? true : false;
-          });
-          this.setState({activeRooms: this.state.activeRooms});
+          if (Object.keys(this.state.activeRoom).length !== 0){
+            this.state.activeRoom.penpal.isFav = (this.state.favList[this.state.activeRoom.penpal.uid]) ? true : false;
+            this.setState({activeRoom: this.state.activeRoom});
+          }
           break;
         case 'room_list':
           this.setState({roomList: recv.data});
           break;
         case 'update_badge':
-          console.log(recv.data);
-          if (this.state.roomList[recv.data.room]){
-            this.state.roomList[recv.data.room].lastMessage.viewed = true;
-            this.setState({roomList: this.state.roomList});
-          }
+          this.updateBadge(recv.data);
           break;
         case 'new_user':
-          console.log(recv);
           this.connectUser(recv.user);
           break;
         case 'user_typing':
+          this.penpalTyping(recv.data);
           break;
         case 'user_change_status':
           this.changeStatusUser(recv.user);
@@ -125,8 +128,46 @@ class Chat extends React.Component {
         case 'user_disconnected':
           this.disconnectUser(recv.user);
           break;
+        case 'message_viewed':
+          this.messageViewed(recv.data);
+          break;
+        case 'penpal_typing':
+          this.penpalTyping(recv.data);
+          break;
       }
     }.bind(this));
+  }
+
+  userTyping(event){
+    if (this.state.user.status !== "invisible"){
+      this.socket.emit('user_typing', event.detail);
+    }
+  }
+
+  penpalTyping(data){
+    if (this.state.activeRoom && this.state.activeRoom.room === data.room){
+      this.state.activeRoom.penpalTyping = data.penpal_typing;
+      this.setState({activeRoom: this.state.activeRoom});
+    }
+  }
+
+  messageViewed(message){
+    if (this.state.activeRoom && this.state.activeRoom.room === message.room){
+      this.state.activeRoom.messages.map((msg, i) => {
+        if (msg._id === message._id){
+          this.state.activeRoom.messages[i].viewed = true;
+          this.setState({activeRoom: this.state.activeRoom});
+        }
+      });
+    }
+  }
+
+  updateBadge(room){
+    if (this.state.roomList[room]){
+      this.socket.emit('message_viewed', this.state.roomList[room].lastMessage);
+      this.state.roomList[room].lastMessage.viewed = true;
+      this.setState({roomList: this.state.roomList});
+    }
   }
 
   setStatus(event){
@@ -147,17 +188,11 @@ class Chat extends React.Component {
       this.state.favList[user.uid] = user;
       this.setState({favList: this.state.favList});
     }
-    Object.keys(this.state.activeRooms).map((room) => {
-      if (user.uid === this.state.activeRooms[room].penpal.uid){
-        this.state.activeRooms[room].penpal.status = user.status;
-        this.setState({activeRooms: this.state.activeRooms});
-      }
-    });
-    updateRoomListStatus(user, user.status);
+    this.updateActiveRoomStatus(user, user.status);
+    this.updateRoomListStatus(user, user.status);
   }
 
   connectUser(user){
-    console.log(user);
     if (this.state.user.uid !== user.uid && this.state.user.direction[0] === user.direction[0]){
       this.state.directionList[user.uid] = user;
       this.setState({directionList: this.state.directionList});
@@ -166,12 +201,7 @@ class Chat extends React.Component {
       this.state.favList[user.uid] = user;
       this.setState({favList: this.state.favList});
     }
-    Object.keys(this.state.activeRooms).map((room) => {
-      if (user.uid === this.state.activeRooms[room].penpal.uid){
-        this.state.activeRooms[room].penpal.status = user.status;
-        this.setState({activeRooms: this.state.activeRooms});
-      }
-    });
+    this.updateActiveRoomStatus(user, user.status);
     this.updateRoomListStatus(user, user.status);
   }
 
@@ -182,6 +212,26 @@ class Chat extends React.Component {
         this.setState({roomList: this.state.roomList});
       }
     });
+  }
+
+  updateActiveRoomStatus(user, status){
+    if (Object.keys(this.state.activeRoom).length !== 0 && this.state.activeRoom.penpal.uid === user.uid){
+      this.state.activeRoom.penpal.status = user.status || 'offline';
+      this.setState({activeRoom: this.state.activeRoom});
+    }
+  }
+
+  clickOnTab(event){
+
+    let currentTab = event.target.getAttribute('aria-controls');
+    this.state.chatBox.currentTab = currentTab;
+    this.setState({chatBox: this.state.chatBox});
+
+    if (this.state.searchState){
+      document.getElementById('search').value = "";
+      this.setState({searchList: {}});
+      this.setState({searchState: false});
+    }
   }
 
   disconnectUser(user){
@@ -197,33 +247,26 @@ class Chat extends React.Component {
         this.state.favList[user.uid].status = 'offline';
         this.setState({favList: this.state.favList});
       }
-      Object.keys(this.state.activeRooms).map((room) => {
-        if (user.uid === this.state.activeRooms[room].penpal.uid){
-          this.state.activeRooms[room].penpal.status = 'offline';
-          this.setState({activeRooms: this.state.activeRooms});
-        }
-      });
+      this.updateActiveRoomStatus(user);
       this.updateRoomListStatus(user);
     }
   }
 
-  loadMsgBoxFromUser(event){
+  loadMsgBox(event){
     let penpal = event.detail;
-    this.socket.emit('load_room_users', [this.state.user.uid, penpal.uid].sort(), function(data){
+    this.socket.emit('load_room', [this.state.user.uid, penpal.uid].sort(), function(data){
       let room = JSON.parse(data);
-      if (!this.state.activeRooms[room.room]){
+      if (Object.keys(this.state.activeRoom).length === 0){
         penpal.isFav = (this.state.favList[penpal.uid]) ? true : false;
         room.penpal = penpal;
-        this.state.activeRooms[room.room] = room;
-        this.state.activeRooms[room.room].displayOrder = Object.keys(this.state.activeRooms).length;
-        this.setState({activeRooms: this.state.activeRooms});
-        this.scrollDivToBottom(room.room);
+        this.setState({activeRoom: room});
+        this.scrollDivToBottom();
+        document.getElementById("msgBox") && document.getElementById("input-text").focus();
       }
       if (this.state.searchState){
         this.setState({searchState: false});
         document.getElementById('search').value = "";
       }
-      document.getElementById(room.room).getElementsByClassName('input_text')[0].focus()
     }.bind(this));
   }
 
@@ -253,18 +296,13 @@ class Chat extends React.Component {
   }
 
   closeRoom(event){
-    let roomId = event.detail.room;
-    if (this.state.activeRooms[roomId]){
-      delete this.state.activeRooms[roomId];
-      if (Object.keys(this.state.activeRooms).length > 0){
-        Object.keys(this.state.activeRooms).map((room) => {
-          if (this.state.activeRooms[room].displayOrder > 1){
-            this.state.activeRooms[room].displayOrder -= 1;
-          }
-        });
+    document.getElementById("msgBox").classList.remove("slideInRight");
+    document.getElementById("msgBox").classList.add("slideOutRight");
+    window.setTimeout(function(){
+      if (Object.keys(this.state.activeRoom).length !== 0){
+        this.setState({activeRoom: {}});
       }
-      this.setState({activeRooms: this.state.activeRooms});
-    }
+    }.bind(this), 800);
   }
 
   minMaxBox(event){
@@ -281,7 +319,6 @@ class Chat extends React.Component {
 
   sendMessage(event){
     let message = event.detail;
-    message.text = message.text.substring(0, message.text.length - 1);
     this.socket.emit('send_message', message);
   }
 
@@ -289,9 +326,9 @@ class Chat extends React.Component {
 
   }
 
-  scrollDivToBottom(id){
-    if (document.getElementById(id)){
-      let div = document.getElementById(id).getElementsByClassName('panel-body')[0];
+  scrollDivToBottom(){
+    if (document.getElementById("msgBox")){
+      let div = document.getElementById("msgBox").getElementsByClassName('panel-body')[0];
       div.scrollTop = div.scrollHeight;
     }
   }
@@ -303,67 +340,44 @@ class Chat extends React.Component {
     }
   }
 
-  loadMsgBoxFromRoom(message){
-    let roomId = message.room;
-    this.socket.emit('load_room_id', roomId, function(data){
-      let room = JSON.parse(data);
-      this.state.activeRooms[room.room] = room;
-      this.state.activeRooms[room.room].penpal.isFav = (this.state.favList[this.state.activeRooms[room.room].penpal.uid]) ? true : false;
-      this.state.activeRooms[room.room].displayOrder = Object.keys(this.state.activeRooms).length;
-      this.setState({activeRooms: this.state.activeRooms});
-      this.scrollDivToBottom(roomId);
-      this.playNewMessageSound(message);
-    }.bind(this));
-  }
-
   addMessageToRoom(message){
-    if (!this.state.activeRooms[message.room]){
-      this.loadMsgBoxFromRoom(message);
+    if (this.state.activeRoom.room && this.state.activeRoom.room === message.room){
+      if (message.owner !== this.state.user.uid){
+        this.socket.emit('message_viewed', message);
+        message.viewed = true;
+      }
+      this.state.activeRoom.messages.push(message);
+      this.setState({activeRoom: this.state.activeRoom});
+      this.scrollDivToBottom();
+      this.state.roomList[message.room].lastMessage = message;
+      this.setState({roomList: this.state.roomList});
     }
     else {
-      this.state.activeRooms[message.room].messages.push(message);
-      this.setState({activeRooms: this.state.activeRooms});
-      this.scrollDivToBottom(message.room);
-      this.playNewMessageSound(message);
-    }
-  }
-
-  handleResize(){
-    this.setState({windowWidth: window.innerWidth});
-  }
-
-  changeDisplayOrder(event){
-    let roomId = event.detail;
-    this.state.activeRooms[roomId].displayOrder = 1;
-    Object.keys(this.state.activeRooms).map((room) => {
-      if (room !== roomId){
-        this.state.activeRooms[room].displayOrder += 1;
+      if (this.state.roomList[message.room]){
+        this.state.roomList[message.room].lastMessage = message;
+        this.setState({roomList: this.state.roomList});
       }
-    });
-    this.setState({activeRooms: this.state.activeRooms});
+      else {
+        this.socket.emit("update_roomlist", message, function(data){
+          let roomListUpdate = JSON.parse(data);
+          this.state.roomList[roomListUpdate.room] = roomListUpdate.update;
+          this.setState({roomList: this.state.roomList});
+        }.bind(this));
+      }
+    }
+    this.playNewMessageSound(message);
   }
 
   render(){
-    let hiddenRooms = {};
-    let numDisplayableRooms = Math.floor(this.state.windowWidth / 300) - 1;
-    let activeRooms = Object.keys(this.state.activeRooms).map((room) => {
-        if (this.state.activeRooms[room].displayOrder <= numDisplayableRooms){
-          return <MsgBox user={this.state.user} room={this.state.activeRooms[room]} key={room}/>
-        }
-        else {
-          hiddenRooms[room] = this.state.activeRooms[room];
-        }
-    });
-    let dropUpRooms;
-    if (Object.keys(hiddenRooms).length > 0){
-      dropUpRooms = <DropUpMsgBox rooms={hiddenRooms} />
+    let activeRoom;
+    if (Object.keys(this.state.activeRoom).length !== 0){
+      activeRoom = <MsgBox user={this.state.user} room={this.state.activeRoom} />
     }
     return (
       <div>
         <ChatBox user={this.state.user} directionList={this.state.directionList} favList={this.state.favList}
         searchState={this.state.searchState} searchList={this.state.searchList} roomList={this.state.roomList} state={this.state.chatBox} />
-        {activeRooms}
-        {dropUpRooms}
+        {activeRoom}
       </div>
     )
   }

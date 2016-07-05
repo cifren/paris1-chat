@@ -1,13 +1,11 @@
 import React from 'react';
 import PanelBody from '../core/PanelBody.jsx';
-import MsgReceived from '../core/MsgReceived.jsx';
-import MsgSent from '../core/MsgSent.jsx';
+import Message from './Message.jsx';
 
 
 class MsgBoxBody extends React.Component {
   constructor(props){
     super(props);
-    this.isMessageHTML = this.isMessageHTML.bind(this);
   }
 
   isMessageHTML(message){
@@ -25,15 +23,24 @@ class MsgBoxBody extends React.Component {
     }
   }
 
+  isOwned(message){
+    let isOwned = (String(message.owner) === String(this.props.user.uid)) ? true : false;
+    return isOwned;
+  }
+
+  getAvatar(message){
+    return (String(message.owner) === String(this.props.user.uid)) ? this.props.user.avatar : this.props.room.penpal.avatar;
+  }
+
   render() {
+    let msgCounter = 0;
     let messages = this.props.room.messages.map((message) => {
+      msgCounter += 1;
       this.isMessageHTML(message);
-      if (message.owner != this.props.user.uid){
-        return <MsgReceived key={message._id} avatar={this.props.room.penpal.avatar} message={message}/>
+      if (msgCounter === this.props.room.messages.length){
+        return <Message lastMessage={true} penpalTyping={this.props.room.penpalTyping} penpalName={this.props.room.penpal.name} owned={this.isOwned(message)} key={message._id} avatar={this.getAvatar(message)} message={message}/>;
       }
-      else {
-        return <MsgSent key={message._id} avatar={this.props.user.avatar} message={message}/>
-      }
+      return <Message owned={this.isOwned(message)} key={message._id} avatar={this.getAvatar(message)} message={message}/>;
     });
     return (
       <PanelBody>

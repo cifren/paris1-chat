@@ -3,26 +3,64 @@ import React from 'react';
 class InputArea extends React.Component {
   constructor(props){
     super(props);
-    this.handleKeyUp = this.handleKeyUp.bind(this);
+    this.state = {
+      'user_typing': false
+    };
+    this.sendMessage = this.sendMessage.bind(this);
+    this.updateUserTyping = this.updateUserTyping.bind(this);
   }
-  handleKeyUp(e){
-    if (e.keyCode === 13 && e.target.value.length > 0){
+  sendMessage(e){
+    let message = document.getElementById('input-text').value;
+    if (e.keyCode && e.keyCode !== 13){
+      this.updateUserTyping();
+      return;
+    }
+    if (e.keyCode){
+      message = message.substring(0, message.length - 1);
+    }
+    if (message.length > 0){
       window.dispatchEvent(new CustomEvent('send_message', {
         detail: {
           room: this.props.room.room,
-          text: e.target.value,
+          text: message,
           receiver: this.props.room.penpal.uid
         }
       }));
-      e.target.value = '';
+      document.getElementById('input-text').value = '';
+      this.updateUserTyping();
     }
   }
+
+  updateUserTyping(){
+    let isUserTyping = (document.getElementById('input-text').value.length !== 0) ? true : false;
+    if (this.state.user_typing !== isUserTyping){
+      console.log(isUserTyping);
+      window.dispatchEvent(new CustomEvent('user_typing', {
+        detail: {
+          room: this.props.room.room,
+          user_typing: isUserTyping,
+          receiver: this.props.room.penpal.uid
+        }
+      }));
+      this.setState({user_typing: isUserTyping});
+    }
+  }
+
+  uploadFile(){
+
+  }
   render() {
+
     return (
       <div className="input_container">
-        <textarea onKeyUp={this.handleKeyUp} className="input_text" rows="2" placeholder="Write your message here..."></textarea>
+        <textarea onKeyUp={this.sendMessage} id="input-text" rows="1" placeholder="Taper votre message ici..."></textarea>
+        <div className="input_send">
+          <a onClick={this.sendMessage} href="#"><span className="glyphicon glyphicon-send"></span></a>
+        </div>
         <div className="input_file_upload">
-          <a href="#"><span className="glyphicon glyphicon-paperclip"></span></a>
+          <div>
+            <a onClick={this.uploadFile} href="#"><span className="glyphicon glyphicon-paperclip"></span></a>
+          </div>
         </div>
       </div>
     );

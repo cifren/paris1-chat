@@ -1,30 +1,31 @@
 import React from 'react';
-import PanelHeader from '../core/PanelHeader.jsx';
-import PanelHeaderTitleContainer from '../core/PanelHeaderTitleContainer.jsx';
 import UserStatus from '../core/UserStatus.jsx';
-import PanelHeaderTitle from '../core/PanelHeaderTitle.jsx';
-import PanelHeaderButtonContainer from '../core/PanelHeaderButtonContainer.jsx';
 import ButtonFav from '../core/ButtonFav.jsx';
-import ButtonClose from '../core/ButtonClose.jsx';
-import ButtonMin from '../core/ButtonMin.jsx';
-
+import ButtonBack from './ButtonBack.jsx';
 
 class MsgBoxHeader extends React.Component {
   constructor(props){
     super(props);
   }
   render() {
+    let styleDivUser = {"position": "relative",
+                        "display": "block",
+                        "padding": "10px 0px 10px 5px"};
+    let styleButtonBack = {"float": "left"};
+    let styleButtonFav = {"float": "right"};
     return (
-      <PanelHeader box={this.props.room.room}>
-        <PanelHeaderTitleContainer>
-          <UserStatus status={this.props.room.penpal.status}/>
-          <PanelHeaderTitle title={this.props.room.penpal.name}/>
-        </PanelHeaderTitleContainer>
-        <PanelHeaderButtonContainer>
-          <ButtonFav room={this.props.room}/>
-          <ButtonClose room={this.props.room}/>
-        </PanelHeaderButtonContainer>
-      </PanelHeader>
+      <ul className="nav nav-tabs">
+        <li style={styleButtonBack} role="presentation"><ButtonBack room={this.props.room}/></li>
+        <li role="presentation">
+          <div style={styleDivUser}>
+            <UserStatus status={this.props.room.penpal.status}/>
+            <div className="msgbox-title">
+              {this.props.room.penpal.name}
+            </div>
+          </div>
+        </li>
+        <li style={styleButtonFav} role="presentation"><ButtonFav room={this.props.room}/></li>
+      </ul>
     );
   }
 }

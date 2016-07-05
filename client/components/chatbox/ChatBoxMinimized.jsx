@@ -12,8 +12,9 @@ class ChatBoxMinimized extends React.Component {
   }
   render() {
     let spanStyle = {float: 'right'};
+    let messageIcon = (this.props.notification > 0) ? <span style={spanStyle} className="badge">{this.props.notification}</span> : <span style={spanStyle} className="glyphicon glyphicon-comment"></span>;
     return (
-      <div onClick={this.handleClick} className="chatbox-minimized"><UserStatus status={this.props.status}/>Chat Paris 1<span style={spanStyle} className="glyphicon glyphicon-comment"></span></div>
+      <div onClick={this.handleClick} className="chatbox-minimized"><UserStatus status={this.props.status}/>Chat Paris 1{messageIcon}</div>
     );
   }
 }

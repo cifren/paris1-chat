@@ -23,11 +23,8 @@ class MsgBox extends React.Component {
     else {
       msgBox =  <MsgBoxMinimized room={this.props.room}/>;
     }
-    let msgBoxPosition = {
-      right: this.props.room.displayOrder * 300 + 'px'
-    };
     return (
-      <div id={this.props.room.room} style={msgBoxPosition} className="msg-window">
+      <div id="msgBox" className="msg-window animated slideInRight">
         {msgBox}
       </div>
     );
