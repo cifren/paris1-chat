@@ -33,6 +33,7 @@ class Message extends React.Component {
     else {
       message_content = <div className="messages">{this.props.message.text}</div>;
     }
+    let stylePenpalMessage = {"textAlign": "right"};
     if (!this.props.owned){
       message =   <div>
                     <div className="avatar-container col-md-2 col-xs-2">
@@ -45,7 +46,7 @@ class Message extends React.Component {
     }
     else {
       message =   <div>
-                    <div className="col-md-10 col-xs-10">
+                    <div className="col-md-10 col-xs-10" style={stylePenpalMessage}>
                       {message_content}
                     </div>
                     <div className="avatar-container col-md-2 col-xs-2">
@@ -54,6 +55,7 @@ class Message extends React.Component {
                   </div>;
 
     }
+    let styleLastMessage = {"borderBottom": "0px"};
     let styleViewed = {"float": "right"};
     let styleDate = {"float": "left"};
     let penpalFeedBack;
@@ -67,7 +69,7 @@ class Message extends React.Component {
       }
     }
     return (
-      <div className="row msg_container">
+      <div className="row msg_container" style={(this.props.lastMessage) ? styleLastMessage : null}>
         {message}
         <div>
           <em style={styleDate}>{this.readableDate()}</em>

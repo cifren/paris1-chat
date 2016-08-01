@@ -1,6 +1,6 @@
 import React from 'react';
 import UserStatus from '../core/UserStatus.jsx';
-import ButtonFav from '../core/ButtonFav.jsx';
+import ButtonFav from './ButtonFav.jsx';
 import ButtonBack from './ButtonBack.jsx';
 
 class MsgBoxHeader extends React.Component {

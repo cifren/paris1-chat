@@ -1,6 +1,7 @@
 import React from 'react';
 
 class InputArea extends React.Component {
+
   constructor(props){
     super(props);
     this.state = {
@@ -8,7 +9,9 @@ class InputArea extends React.Component {
     };
     this.sendMessage = this.sendMessage.bind(this);
     this.updateUserTyping = this.updateUserTyping.bind(this);
+    this.uploadFile = this.uploadFile.bind(this);
   }
+
   sendMessage(e){
     let message = document.getElementById('input-text').value;
     if (e.keyCode && e.keyCode !== 13){
@@ -34,7 +37,6 @@ class InputArea extends React.Component {
   updateUserTyping(){
     let isUserTyping = (document.getElementById('input-text').value.length !== 0) ? true : false;
     if (this.state.user_typing !== isUserTyping){
-      console.log(isUserTyping);
       window.dispatchEvent(new CustomEvent('user_typing', {
         detail: {
           room: this.props.room.room,
@@ -46,20 +48,36 @@ class InputArea extends React.Component {
     }
   }
 
-  uploadFile(){
-
+  uploadFile(e){
+    let file = e.target.files[0];
+    if (typeof file === "undefined"){
+      return;
+    }
+    if (file.size > 2048000000){
+      alert("Impossible d'envoyer le fichier car ce dernier est trop volumineux. (Taille maximale 2048Mo)");
+      return;
+    }
+    window.dispatchEvent(new CustomEvent("upload_file", {
+      detail: {
+        file: file,
+        room: this.props.room.room,
+        receiver: this.props.room.penpal
+      }
+    }));
   }
-  render() {
 
+  render() {
+    let styleInputFile = {"display": "none"};
     return (
       <div className="input_container">
         <textarea onKeyUp={this.sendMessage} id="input-text" rows="1" placeholder="Taper votre message ici..."></textarea>
         <div className="input_send">
-          <a onClick={this.sendMessage} href="#"><span className="glyphicon glyphicon-send"></span></a>
+          <a onClick={this.sendMessage} href="#" title="Envoyer"><span className="glyphicon glyphicon-send"></span></a>
         </div>
         <div className="input_file_upload">
           <div>
-            <a onClick={this.uploadFile} href="#"><span className="glyphicon glyphicon-paperclip"></span></a>
+            <a onClick={function(){document.getElementById("input_file").click();}} href="#" title="Joindre un fichier"><span className="glyphicon glyphicon-paperclip"></span></a>
+            <input style={styleInputFile} id="input_file" type="file" onChange={this.uploadFile}/>
           </div>
         </div>
       </div>

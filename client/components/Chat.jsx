@@ -4,7 +4,6 @@ import ReactDOM from 'react-dom';
 import io from 'socket.io-client';
 import MsgBox from './msgbox/MsgBox.jsx';
 import ChatBox from './chatbox/ChatBox.jsx';
-import DropUpMsgBox from './core/DropUpMsgBox.jsx';
 
 class Chat extends React.Component {
 
@@ -19,7 +18,8 @@ class Chat extends React.Component {
       activeRooms: {},
       activeRoom: {},
       user: {status: 'offline'},
-      chatBox: {minimized: false, currentTab: 'home'}
+      chatBox: {minimized: false, currentTab: 'home'},
+      preferences: {sound: true, lang: 'fr'}
     };
     this.closeChat = this.closeChat.bind(this);
     this.setStatus = this.setStatus.bind(this);
@@ -41,6 +41,7 @@ class Chat extends React.Component {
     this.messageViewed = this.messageViewed.bind(this);
     this.updateBadge = this.updateBadge.bind(this);
     this.userTyping = this.userTyping.bind(this);
+    this.manageSound = this.manageSound.bind(this);
 
     this.connectToServer();
 
@@ -66,6 +67,7 @@ class Chat extends React.Component {
     // DOM events
     window.addEventListener('disconnect', this.closeChat);
     window.addEventListener('change_status', this.setStatus);
+    window.addEventListener('manage_sound', this.manageSound);
     window.addEventListener('user_button', this.loadMsgBox);
     window.addEventListener('fav_button', this.manageFavList);
     window.addEventListener('search_keypress', this.updateSearchList);
@@ -134,6 +136,11 @@ class Chat extends React.Component {
         case 'penpal_typing':
           this.penpalTyping(recv.data);
           break;
+        case 'preferences':
+          this.setState({preferences: recv.data});
+          break;
+        default:
+          console.log("Unknown action : " + recv.action);
       }
     }.bind(this));
   }
@@ -174,8 +181,19 @@ class Chat extends React.Component {
     let newStatus = event.detail;
     if (this.state.user.status != newStatus){
       this.state.user.status = newStatus;
-      this.setState({user: this.state.user})
-      this.socket.emit('user_status', this.state.user);
+      this.socket.emit('user_status', this.state.user, function(){
+        this.setState({user: this.state.user})
+      }.bind(this));
+    }
+  }
+
+  manageSound(event){
+    let newSoundPref = (event.detail === "sound-enabled") ? true : false;
+    if (this.state.preferences.sound !== newSoundPref){
+      this.state.preferences.sound = newSoundPref;
+      this.socket.emit('save_pref', this.state.preferences, function(){
+        this.setState({preferences: this.state.preferences});
+      }.bind(this));
     }
   }
 
@@ -322,8 +340,30 @@ class Chat extends React.Component {
     this.socket.emit('send_message', message);
   }
 
-  uploadFile(){
-
+  uploadFile(e){
+    let file = e.detail.file;
+    let penpal = e.detail.receiver;
+    let room = e.detail.room
+    let reader = new FileReader();
+    reader.onload = function(event){
+      let data = event.target.result;
+      this.socket.emit("upload_file", {'name': file.name, 'owner': this.state.user.uid, 'type': file.type, 'size': file.size, 'data': data}, function(data){
+        let recv = JSON.parse(data);
+        if (recv.successful){
+          window.dispatchEvent(new CustomEvent("send_message", {
+            detail: {
+              room: room,
+              text: recv.link,
+              receiver: penpal
+            }
+          }));
+        }
+        else {
+          alert("Le fichier n'a pas pu être envoyé.");
+        }
+      });
+    }.bind(this);
+    reader.readAsBinaryString(file);
   }
 
   scrollDivToBottom(){
@@ -334,7 +374,7 @@ class Chat extends React.Component {
   }
 
   playNewMessageSound(message){
-    if (message.owner !== this.state.user.uid){
+    if (this.state.preferences.sound && message.owner !== this.state.user.uid){
       let audio = new Audio('./../sounds/popup.mp3');
       audio.play();
     }
@@ -349,23 +389,33 @@ class Chat extends React.Component {
       this.state.activeRoom.messages.push(message);
       this.setState({activeRoom: this.state.activeRoom});
       this.scrollDivToBottom();
+      // if (!this.state.roomList[message.room]){
+      //   this.socket.emit("update_roomlist", message, function(data){
+      //     let roomListUpdate = JSON.parse(data);
+      //     this.state.roomList[roomListUpdate.room] = roomListUpdate.update;
+      //     this.setState({roomList: this.state.roomList});
+      //   }.bind(this));
+      // }
+      // else {
+      //   this.state.roomList[message.room].lastMessage = message;
+      //   this.setState({roomList: this.state.roomList});
+      // }
+    }
+    //else {
+    if (this.state.roomList[message.room]){
       this.state.roomList[message.room].lastMessage = message;
       this.setState({roomList: this.state.roomList});
+      this.playNewMessageSound(message);
     }
     else {
-      if (this.state.roomList[message.room]){
-        this.state.roomList[message.room].lastMessage = message;
+      this.socket.emit("update_roomlist", message, function(data){
+        let roomListUpdate = JSON.parse(data);
+        this.state.roomList[roomListUpdate.room] = roomListUpdate.update;
         this.setState({roomList: this.state.roomList});
-      }
-      else {
-        this.socket.emit("update_roomlist", message, function(data){
-          let roomListUpdate = JSON.parse(data);
-          this.state.roomList[roomListUpdate.room] = roomListUpdate.update;
-          this.setState({roomList: this.state.roomList});
-        }.bind(this));
-      }
+        this.playNewMessageSound(message);
+      }.bind(this));
     }
-    this.playNewMessageSound(message);
+    //}
   }
 
   render(){
@@ -376,7 +426,8 @@ class Chat extends React.Component {
     return (
       <div>
         <ChatBox user={this.state.user} directionList={this.state.directionList} favList={this.state.favList}
-        searchState={this.state.searchState} searchList={this.state.searchList} roomList={this.state.roomList} state={this.state.chatBox} />
+        searchState={this.state.searchState} searchList={this.state.searchList} roomList={this.state.roomList} state={this.state.chatBox}
+        preferences={this.state.preferences}/>
         {activeRoom}
       </div>
     )

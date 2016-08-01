@@ -12,7 +12,7 @@ class ButtonBack extends React.Component {
   }
   render() {
     return (
-      <a onClick={this.handleClick} href="#"><span data-toggle="tooltip" data-placement="top" title="Retour au menu" className="chat_button glyphicon glyphicon-chevron-left"></span></a>
+      <a onClick={this.handleClick} href="#" title="Retour"><span className="chat_button glyphicon glyphicon-chevron-left"></span></a>
     );
   }
 }

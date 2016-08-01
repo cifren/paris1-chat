@@ -1,5 +1,6 @@
 node_modules/
 build/
+uploads/
 server/config.js
 client/config.js
 client/bundle.js

@@ -25,10 +25,6 @@ var UserSchema = mongoose.Schema({
     required: false,
     trim: true
   },
-  preferences: {
-    type: ObjectId,
-    ref: 'Preference'
-  },
   avatar: {
     type: String,
     required: false

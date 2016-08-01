@@ -154,6 +154,13 @@ function sendRoomList(socket, user){
   });
 }
 
+function sendPreferences(socket, user){
+  Preference.findOne({user: user.uid}, function(err, pref){
+    if (err) return console.log(err);
+    io.to(users[socket.user].uid).emit('chat', JSON.stringify({'action': 'preferences', 'data': {sound: pref.sound, lang: pref.lang}}));
+  });
+}
+
 function addUserToChat(socket, user, fn){
 
   var user_settings = {
@@ -172,13 +179,13 @@ function addUserToChat(socket, user, fn){
   }
 
   socket.join(String(user_settings.uid));
+  socket.user = user_settings.uid;
+  users[socket.user] = user_settings;
 
+  sendPreferences(socket, user_settings);
   sendDirectionList(socket, user_settings);
   sendFavList(socket, user_settings);
   sendRoomList(socket, user_settings);
-
-  socket.user = user_settings.uid;
-  users[socket.user] = user_settings;
 
   // Send new user is connected to everyone
   socket.broadcast.emit('chat', JSON.stringify( {'action': 'new_user', 'user': users[socket.user]} ));
@@ -205,16 +212,17 @@ io.on('connection', function(socket){
       if (err) return console.log(err);
       // Create a new user
       if (!user) {
-        var newPref = new Preference().save(function(err, pref){
-          if (err) console.log(err);
-          var newUser = new User({
+        var newUser = new User({
             user: recv.user,
             name: recv.name,
             avatar: get_avatar_url(recv.user),
             service: [recv.service, structures[recv.service]],
             direction: [getDirection(recv.service), structures[getDirection(recv.service)]]
-          });
-          newUser.save(function(err, newUser) {
+        });
+        newUser.save(function(err, newUser) {
+          if (err) return console.log(err);
+          var newPref = new Preference({user: newUser._id});
+          newPref.save(function(err, newPref){
             if (err) return console.log(err);
             addUserToChat(socket, newUser, fn);
           });
@@ -222,11 +230,6 @@ io.on('connection', function(socket){
       }
       // Already registered user
       else {
-        Preference.findById(user.preferences, function(err, pref){
-          if (err) return console.log(err);
-          socket.emit('preferences', JSON.stringify(pref));
-        });
-
         if (recv.name != user.name)
           user.name = recv.name;
         if (recv.service != user.service){
@@ -242,11 +245,14 @@ io.on('connection', function(socket){
   });
 
   // Event received when user want change his status
-  socket.on('user_status', function (recv) {
+  socket.on('user_status', function (recv, fn) {
     User.update({_id: recv.uid}, {$set: {status: recv.status}}, function(err, updated_user){
       if (err) return console.log(err);
       users[socket.user].status = recv.status;
-      socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_change_status', 'user': users[socket.user]} ));
+      socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_change_status', 'user': users[socket.user]}));
+      if (typeof fn !== "undefined"){
+        fn();
+      }
     });
   });
 
@@ -336,17 +342,6 @@ io.on('connection', function(socket){
     });
   });
 
-  socket.on('save_user_options', function (recv) {
-    if (users[socket.user]){
-      User.findById(users[socket.user].uid, function(err, user){
-        if (err) return console.log(err);
-        Preference.update({_id: user.preferences}, {$set: recv}, function(err, updatedDoc){
-          if(err) return console.log(err);
-        });
-      });
-    }
-  });
-
   socket.on('manage_fav_list', function(recv) {
     if (users[socket.user]){
       User.findById(users[socket.user].uid, function(err, user){
@@ -389,8 +384,27 @@ io.on('connection', function(socket){
     }
   });
 
+  socket.on('save_pref', function(recv, fn){
+    if (users[socket.user]){
+      Preference.findOne({user: socket.user}, function(err, pref){
+          if (err) return console.log(err);
+          pref.sound = recv.sound;
+          pref.lang = recv.lang;
+          pref.save(function(err, updatedPref){
+            if (err) return console.log(err);
+            console.log(updatedPref);
+            fn();
+          });
+      });
+    }
+  });
+
   socket.on('upload_file', function(recv, fn) {
-    var file_loc = "uploads/" + recv.name;
+    var upload_dir = "./uploads";
+    if (!fs.existsSync(upload_dir)){
+      fs.mkdirSync(upload_dir);
+    }
+    var file_loc = upload_dir + "/" + recv.name;
     fs.writeFile(file_loc, recv.data, function(err){
       if (err) return console.log(err);
       var formData = {
@@ -411,19 +425,40 @@ io.on('connection', function(socket){
   });
 
   socket.on('update_roomlist', function(recv, fn){
-    User.findById(recv.owner, function(err, user){
-      if (err) return console.log(err);
-      var penpal = {
-        'uid': user._id,
-        'user': user.user,
-        'name': user.name,
-        'status': users[user._id] && users[user._id].status || 'offline',
-        'avatar': user.avatar,
-        'service': user.service,
-        'direction': user.direction
-      };
-      fn(JSON.stringify({room: recv.room, update: {lastMessage: recv, penpal: penpal}}));
-    });
+    if (String(recv.owner) === String(socket.user)){
+      Room.findById(recv.room, function(err, room){
+        if (err) return console.log(err);
+        var penpalUid = (room.users[0] === recv.owner) ? room.users[1] : room.users[0];
+        User.findById(penpalUid, function(err, user){
+          if (err) return console.log(err);
+          var penpal = {
+            'uid': user._id,
+            'user': user.user,
+            'name': user.name,
+            'status': users[user._id] && users[user._id].status || 'offline',
+            'avatar': user.avatar,
+            'service': user.service,
+            'direction': user.direction
+          };
+          fn(JSON.stringify({room: recv.room, update: {lastMessage: recv, penpal: penpal}}));
+        });
+      });
+    }
+    else {
+      User.findById(recv.owner, function(err, user){
+        if (err) return console.log(err);
+        var penpal = {
+          'uid': user._id,
+          'user': user.user,
+          'name': user.name,
+          'status': users[user._id] && users[user._id].status || 'offline',
+          'avatar': user.avatar,
+          'service': user.service,
+          'direction': user.direction
+        };
+        fn(JSON.stringify({room: recv.room, update: {lastMessage: recv, penpal: penpal}}));
+      });
+    }
   });
 });
 

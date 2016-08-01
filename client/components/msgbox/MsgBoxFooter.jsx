@@ -1,6 +1,6 @@
 import React from 'react';
 import PanelFooter from '../core/PanelFooter.jsx';
-import InputArea from '../core/InputArea.jsx';
+import InputArea from './InputArea.jsx';
 
 class MsgBoxFooter extends React.Component {
   constructor(props){

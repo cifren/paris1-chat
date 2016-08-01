@@ -13,8 +13,9 @@ class ButtonFav extends React.Component {
   render() {
     let favStyle = {"marginRight": "0px"};
     let favClass = (this.props.room.penpal.isFav) ? "chat_button glyphicon glyphicon-star icon_fav" : "chat_button glyphicon glyphicon-star-empty icon_fav";
+    let favTitle = (this.props.room.penpal.isFav) ? "Retirer des favoris" : "Ajouter aux favoris";
     return (
-      <a style={favStyle} onClick={this.handleClick} href="#" data-toggle="tooltip" data-placement="top" title="Add to favorites"><span className={favClass}></span></a>
+      <a style={favStyle} onClick={this.handleClick} href="#" title={favTitle}><span className={favClass}></span></a>
     );
   }
 }

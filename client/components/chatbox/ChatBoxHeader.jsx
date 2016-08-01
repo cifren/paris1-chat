@@ -19,10 +19,10 @@ class ChatBoxHeader extends React.Component {
         <div>
           <ul className="nav nav-tabs" role="tablist">
             <li role="presentation" className="active">
-              <a href="#home" aria-controls="home" role="tab" data-toggle="tab"><span className="glyphicon glyphicon-home"></span></a>
+              <a href="#home" aria-controls="home" role="tab" data-toggle="tab" title="Accueil"><span className="glyphicon glyphicon-home"></span></a>
             </li>
             <li role="presentation">
-              <a href="#message" aria-controls="message" role="tab" data-toggle="tab">{messageIcon}</a>
+              <a href="#message" aria-controls="message" role="tab" data-toggle="tab" title="Mes messages">{messageIcon}</a>
             </li>
             <li style={styleOptionLi} role="presentation" className="dropdown">
               <a style={styleOptionA} href="#" className="dropdown-toggle" data-toggle="dropdown"><span className="glyphicon glyphicon-option-horizontal"></span></a>
