@@ -27,11 +27,17 @@ class Message extends React.Component {
 
   render() {
     let message_content, message;
-    if (this.props.message.isHTML){
-      message_content = <div className="messages" dangerouslySetInnerHTML={this.props.message.text}></div>;
+    let messageText = this.props.tabText.map((line, i) => {
+      if (i === this.props.tabText.length - 1){
+        return <div key={i}>{line}</div>;
+      }
+      return <div key={i}>{line}<br/></div>;
+    });
+    if (this.props.message.html){
+      message_content = <div className="messages" dangerouslySetInnerHTML={this.props.message.html}></div>;
     }
     else {
-      message_content = <div className="messages">{this.props.message.text}</div>;
+      message_content = <div className="messages">{messageText}</div>;
     }
     let stylePenpalMessage = {"textAlign": "right"};
     if (!this.props.owned){
@@ -56,8 +62,9 @@ class Message extends React.Component {
 
     }
     let styleLastMessage = {"borderBottom": "0px"};
-    let styleViewed = {"float": "right"};
-    let styleDate = {"float": "left"};
+    let styleViewed = {"float": "left"};
+    let styleDate = (this.props.owned) ? {"float": "right"} : {"float": "left"};
+    let styleDiv = {"padding": "0px"};
     let penpalFeedBack;
     if (this.props.lastMessage){
       if (this.props.penpalTyping){
@@ -71,7 +78,7 @@ class Message extends React.Component {
     return (
       <div className="row msg_container" style={(this.props.lastMessage) ? styleLastMessage : null}>
         {message}
-        <div>
+        <div style={styleDiv} className="col-md-12 col-xs-12">
           <em style={styleDate}>{this.readableDate()}</em>
           {penpalFeedBack}
         </div>

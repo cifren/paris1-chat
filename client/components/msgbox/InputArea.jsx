@@ -18,7 +18,11 @@ class InputArea extends React.Component {
       this.updateUserTyping();
       return;
     }
-    if (e.keyCode){
+    else if (e.keyCode && e.keyCode === 13){
+      if (message.length === 1){
+        document.getElementById('input-text').value = '';
+        return;
+      }
       message = message.substring(0, message.length - 1);
     }
     if (message.length > 0){

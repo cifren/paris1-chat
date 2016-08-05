@@ -392,7 +392,6 @@ io.on('connection', function(socket){
           pref.lang = recv.lang;
           pref.save(function(err, updatedPref){
             if (err) return console.log(err);
-            console.log(updatedPref);
             fn();
           });
       });

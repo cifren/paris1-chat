@@ -9,17 +9,12 @@ class MsgBoxBody extends React.Component {
   }
 
   isMessageHTML(message){
-    if (typeof message.isHTML !== "undefined")
+    if (typeof message.html !== "undefined"){
       return message;
-    message.isHTML = false;
-    if (message.text.match(/<a href=https:\/\/filex(-test)\.univ-paris1\.fr\/get\?k=[0-9A-za-z]+.*/)){
-      message.text = {__html: this.props.room.messages[message].text};
-      message.isHTML = true;
     }
 
     if (message.text.match(/https?:\/\/.*/gi)){
-      message.text = {__html: "<a target='_blank' href='" + message.text + "'>" + message.text + '</a>'};
-      message.isHTML = true;
+      message.html = {__html: "<a target='_blank' href='" + message.text + "'>" + message.text + '</a>'};
     }
   }
 
@@ -33,14 +28,30 @@ class MsgBoxBody extends React.Component {
   }
 
   render() {
-    let msgCounter = 0;
-    let messages = this.props.room.messages.map((message) => {
-      msgCounter += 1;
+    let msgTab = [];
+    let messages = this.props.room.messages.map((message, i) => {
+
       this.isMessageHTML(message);
-      if (msgCounter === this.props.room.messages.length){
-        return <Message lastMessage={true} penpalTyping={this.props.room.penpalTyping} penpalName={this.props.room.penpal.name} owned={this.isOwned(message)} key={message._id} avatar={this.getAvatar(message)} message={message}/>;
+      let isLastMessage = (i === this.props.room.messages.length - 1) ? true : false;
+      if (!message.isHTML && !isLastMessage){
+        let curMessageTime = new Date(message.posted);
+        let curMessageOwner = message.owner;
+        let nextMessageTime = new Date(this.props.room.messages[i+1].posted);
+        let nextMessageOwner = this.props.room.messages[i+1].owner;
+        let deltaTime = nextMessageTime - curMessageTime;
+        if (deltaTime < 60000 && curMessageOwner === nextMessageOwner){
+          msgTab.push(message.text);
+          return;
+        }
       }
-      return <Message owned={this.isOwned(message)} key={message._id} avatar={this.getAvatar(message)} message={message}/>;
+      msgTab.push(message.text);
+      let tabText = msgTab;
+      msgTab = [];
+
+      if (isLastMessage){
+        return <Message lastMessage={true} penpalTyping={this.props.room.penpalTyping} penpalName={this.props.room.penpal.name} owned={this.isOwned(message)} key={message._id} avatar={this.getAvatar(message)} message={message} tabText={tabText}/>;
+      }
+      return <Message owned={this.isOwned(message)} key={message._id} avatar={this.getAvatar(message)} message={message} tabText={tabText}/>;
     });
     return (
       <PanelBody>

@@ -389,19 +389,7 @@ class Chat extends React.Component {
       this.state.activeRoom.messages.push(message);
       this.setState({activeRoom: this.state.activeRoom});
       this.scrollDivToBottom();
-      // if (!this.state.roomList[message.room]){
-      //   this.socket.emit("update_roomlist", message, function(data){
-      //     let roomListUpdate = JSON.parse(data);
-      //     this.state.roomList[roomListUpdate.room] = roomListUpdate.update;
-      //     this.setState({roomList: this.state.roomList});
-      //   }.bind(this));
-      // }
-      // else {
-      //   this.state.roomList[message.room].lastMessage = message;
-      //   this.setState({roomList: this.state.roomList});
-      // }
     }
-    //else {
     if (this.state.roomList[message.room]){
       this.state.roomList[message.room].lastMessage = message;
       this.setState({roomList: this.state.roomList});
@@ -415,7 +403,6 @@ class Chat extends React.Component {
         this.playNewMessageSound(message);
       }.bind(this));
     }
-    //}
   }
 
   render(){

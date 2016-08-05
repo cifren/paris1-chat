@@ -199,20 +199,20 @@ a > span, .badge{
 }
 .messages {
   background: white;
-  padding: 10px;
+  padding: 5px;
   border-radius: 2px;
   max-width:100%;
 }
 .msg_container {
   border-bottom:1px solid #ddd;
   padding: 5px 10px 5px 10px;
-  overflow: hidden;
 }
 img {
   vertical-align: middle;
   display: block;
   width: 100%;
 }
+
 .avatar {
   width: 32px;
   height: 32px;
