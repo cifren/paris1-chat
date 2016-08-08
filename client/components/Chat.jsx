@@ -42,6 +42,8 @@ class Chat extends React.Component {
     this.updateBadge = this.updateBadge.bind(this);
     this.userTyping = this.userTyping.bind(this);
     this.manageSound = this.manageSound.bind(this);
+    this.uploadProgress = this.uploadProgress.bind(this);
+    this.sendMoreData = this.sendMoreData.bind(this);
 
     this.connectToServer();
 
@@ -138,6 +140,9 @@ class Chat extends React.Component {
           break;
         case 'preferences':
           this.setState({preferences: recv.data});
+          break;
+        case 'send_more_data':
+          this.sendMoreData(recv.data);
           break;
         default:
           console.log("Unknown action : " + recv.action);
@@ -309,10 +314,6 @@ class Chat extends React.Component {
     }
   }
 
-  updateRoomList(event){
-
-  }
-
   closeRoom(event){
     document.getElementById("msgBox").classList.remove("slideInRight");
     document.getElementById("msgBox").classList.add("slideOutRight");
@@ -340,12 +341,24 @@ class Chat extends React.Component {
     this.socket.emit('send_message', message);
   }
 
+  uploadProgress(progress){
+    this.state.activeRoom.fileUpload.progress = progress;
+    this.setState({activeRoom: this.state.activeRoom});
+  }
+
   uploadFile(e){
     let file = e.detail.file;
     let penpal = e.detail.receiver;
-    let room = e.detail.room
+    let room = e.detail.room;
+    this.state.activeRoom.fileUpload = {
+      "file": file,
+      "progress": 0,
+      "reader": new FileReader()
+    };
+    this.setState({activeRoom: this.state.activeRoom});
+    this.socket.emit("start_upload", {'name': file.name, 'size': file.size});
     let reader = new FileReader();
-    reader.onload = function(event){
+    this.state.activeRoom.fileUpload.reader.onload = function(event){
       let data = event.target.result;
       this.socket.emit("upload_file", {'name': file.name, 'owner': this.state.user.uid, 'type': file.type, 'size': file.size, 'data': data}, function(data){
         let recv = JSON.parse(data);
@@ -354,16 +367,33 @@ class Chat extends React.Component {
             detail: {
               room: room,
               text: recv.link,
-              receiver: penpal
+              receiver: penpal.uid
             }
           }));
         }
         else {
           alert("Le fichier n'a pas pu être envoyé.");
         }
-      });
+        delete this.state.activeRoom.fileUpload;
+        this.setState({activeRoom: this.state.activeRoom});
+      }.bind(this));
     }.bind(this);
-    reader.readAsBinaryString(file);
+  }
+
+  sendMoreData(data){
+    this.uploadProgress(data.progress);
+    let place = data.place * 524288;
+    let blob;
+    if (this.state.activeRoom.fileUpload.file.webkitSlice){
+      blob = this.state.activeRoom.fileUpload.file.webkitSlice(place, place + Math.min(524288, this.state.activeRoom.fileUpload.file.size - place));
+    }
+    else if (this.state.activeRoom.fileUpload.file.mozSlice) {
+      blob = this.state.activeRoom.fileUpload.file.mozSlice(place, place + Math.min(524288, this.state.activeRoom.fileUpload.file.size - place));
+    }
+    else {
+      blob = this.state.activeRoom.fileUpload.file.slice(place, place + Math.min(524288, this.state.activeRoom.fileUpload.file.size - place));
+    }
+    this.state.activeRoom.fileUpload.reader.readAsBinaryString(blob);
   }
 
   scrollDivToBottom(){

@@ -96,6 +96,7 @@ a > span, .badge{
 .panel{
   height: 400px;
   margin-bottom: 0px;
+  border-bottom: 0px;
 }
 
 .container{
@@ -305,10 +306,12 @@ img {
   height: 50%;
   background-color: white;
   box-sizing:border-box;
-  padding-left:2px;
+  padding-left:4px;
+  padding-right: 4px;
 }
 
 #input-text{
+  height: 25px;
   padding: 0px;
   resize: none;
   border: none;
@@ -319,6 +322,15 @@ img {
 
 #input-text:focus{
   outline: none;
+}
+
+.progress{
+  background-color: white;
+  border-radius: 0px;
+}
+
+.progress-bar{
+  background-color: #00326e;
 }
 
 .search-container{

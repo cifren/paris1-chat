@@ -9,12 +9,11 @@ class MsgBoxBody extends React.Component {
   }
 
   isMessageHTML(message){
-    if (typeof message.html !== "undefined"){
-      return message;
-    }
-
     if (message.text.match(/https?:\/\/.*/gi)){
       message.html = {__html: "<a target='_blank' href='" + message.text + "'>" + message.text + '</a>'};
+    }
+    else {
+      message.html = "";
     }
   }
 
@@ -30,10 +29,11 @@ class MsgBoxBody extends React.Component {
   render() {
     let msgTab = [];
     let messages = this.props.room.messages.map((message, i) => {
-
-      this.isMessageHTML(message);
+      if (typeof message.html === "undefined"){
+        this.isMessageHTML(message);
+      }
       let isLastMessage = (i === this.props.room.messages.length - 1) ? true : false;
-      if (!message.isHTML && !isLastMessage){
+      if (!message.html && !isLastMessage){
         let curMessageTime = new Date(message.posted);
         let curMessageOwner = message.owner;
         let nextMessageTime = new Date(this.props.room.messages[i+1].posted);

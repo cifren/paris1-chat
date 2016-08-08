@@ -71,7 +71,15 @@ class InputArea extends React.Component {
   }
 
   render() {
-    let styleInputFile = {"display": "none"};
+    let styleDisplayNone = {"display": "none"};
+    let progressBar;
+    if (this.props.room.fileUpload){
+      let styleProgressBar = {"width": this.props.room.fileUpload.progress + "%"};
+      progressBar = <div className="progress">
+                      <div className="progress-bar" role="progressbar" aria-valuenow={String(this.props.room.fileUpload.progress)} aria-valuemin="0" aria-valuemax="100" style={styleProgressBar}>
+                      </div>
+                    </div>;
+    }
     return (
       <div className="input_container">
         <textarea onKeyUp={this.sendMessage} id="input-text" rows="1" placeholder="Taper votre message ici..."></textarea>
@@ -81,9 +89,10 @@ class InputArea extends React.Component {
         <div className="input_file_upload">
           <div>
             <a onClick={function(){document.getElementById("input_file").click();}} href="#" title="Joindre un fichier"><span className="glyphicon glyphicon-paperclip"></span></a>
-            <input style={styleInputFile} id="input_file" type="file" onChange={this.uploadFile}/>
+            <input style={styleDisplayNone} id="input_file" type="file" onChange={this.uploadFile}/>
           </div>
         </div>
+        {progressBar}
       </div>
     );
   }

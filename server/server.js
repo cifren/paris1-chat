@@ -398,29 +398,66 @@ io.on('connection', function(socket){
     }
   });
 
-  socket.on('upload_file', function(recv, fn) {
+  socket.on('start_upload', function(recv){
     var upload_dir = "./uploads";
     if (!fs.existsSync(upload_dir)){
       fs.mkdirSync(upload_dir);
     }
-    var file_loc = upload_dir + "/" + recv.name;
-    fs.writeFile(file_loc, recv.data, function(err){
+    files[recv.name] = {};
+    files[recv.name].size = recv.size;
+    files[recv.name].progress = 0;
+    files[recv.name].path = upload_dir + "/" + recv.name;
+    var place = 0;
+    fs.open("./uploads/" + recv.name, "a", "0755", function(err, fd){
+      if (err){
+        console.log(err);
+      }
+      else {
+        files[recv.name].handler = fd;
+        socket.emit("chat", JSON.stringify({'action': 'send_more_data', 'data': {"place": place, "progress": files[recv.name].progress}}));
+      }
+    })
+  });
+
+  socket.on('upload_file', function(recv, fn) {
+    files[recv.name].progress += recv.data.length;
+    files[recv.name].data += recv.data;
+    // If upload completed, send the file to Filex
+    if (files[recv.name].progress === files[recv.name].size){
+      fs.write(files[recv.name].handler, files[recv.name].data, null, 'Binary', function(err, writen){
       if (err) return console.log(err);
-      var formData = {
-        owner: recv.owner,
-        upload: fs.createReadStream(file_loc)
-      };
-      request.post({url: 'https://filex-test.univ-paris1.fr/trusted-upload', formData: formData}, function(err, res, body){
-        if (err) return console.log(err);
-        if (body.match(/https:\/\/filex(-test)\.univ-paris1\.fr\/get\?k=[0-9A-za-z]+/)){
-          if (typeof fn !== 'undefined')
-            fn(JSON.stringify({successful: true, link: body}));
-        }
-        fs.unlink(file_loc, function(err){
+        var formData = {
+          owner: recv.owner,
+          upload: fs.createReadStream(files[recv.name].path)
+        };
+        request.post({url: 'https://filex-test.univ-paris1.fr/trusted-upload', formData: formData}, function(err, res, body){
           if (err) return console.log(err);
+          if (body.match(/https:\/\/filex(-test)\.univ-paris1\.fr\/get\?k=[0-9A-za-z]+/)){
+            if (typeof fn !== 'undefined')
+              fn(JSON.stringify({successful: true, link: body}));
+          }
+          fs.unlink(files[recv.name].path, function(err){
+            if (err) return console.log(err);
+          });
+          delete files[recv.name];
         });
       });
-    });
+    }
+    // If the buffer reaches 10 Mb of data, write data and reset buffer
+    else if (files[recv.name].data.length > 10485760){
+      fs.write(files[recv.name].handler, files[recv.name].data, null, 'Binary', function(err, writen){
+        files[recv.name].data = "";
+        var place = files[recv.name].progress / 524288;
+        var progress = files[recv.name].progress / files[recv.name].size * 100;
+        socket.emit("chat", JSON.stringify({'action': 'send_more_data', 'data': {"place": place, "progress": progress}}));
+      });
+    }
+    // Else ask for more data
+    else {
+      var place = files[recv.name].progress / 524288;
+      var progress = files[recv.name].progress / files[recv.name].size * 100;
+      socket.emit("chat", JSON.stringify({'action': 'send_more_data', 'data': {"place": place, "progress": progress}}));
+    }
   });
 
   socket.on('update_roomlist', function(recv, fn){

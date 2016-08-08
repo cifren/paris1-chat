@@ -33,7 +33,7 @@ class Message extends React.Component {
       }
       return <div key={i}>{line}<br/></div>;
     });
-    if (this.props.message.html){
+    if (typeof this.props.message.html === "object"){
       message_content = <div className="messages" dangerouslySetInnerHTML={this.props.message.html}></div>;
     }
     else {
@@ -62,8 +62,8 @@ class Message extends React.Component {
 
     }
     let styleLastMessage = {"borderBottom": "0px"};
-    let styleViewed = {"float": "left"};
-    let styleDate = (this.props.owned) ? {"float": "right"} : {"float": "left"};
+    let styleViewed = {"float": "right"};
+    let styleDate = {"float": "left"};
     let styleDiv = {"padding": "0px"};
     let penpalFeedBack;
     if (this.props.lastMessage){
