@@ -303,7 +303,14 @@ io.on('connection', function(socket){
   });
 
   // Event received when user has disconnected
-  socket.on('disconnect', function () {
+  // socket.on('disconnect', function () {
+  //   if (users[socket.user]) {
+  //     socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_disconnected', 'user': users[socket.user]} ));
+  //     delete users[socket.user];
+  //   }
+  // });
+
+  socket.on('close_chat', function(){
     if (users[socket.user]) {
       socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_disconnected', 'user': users[socket.user]} ));
       delete users[socket.user];
@@ -452,7 +459,7 @@ io.on('connection', function(socket){
         socket.emit("chat", JSON.stringify({'action': 'send_more_data', 'data': {"place": place, "progress": progress}}));
       });
     }
-    // Else ask for more data
+    // Else ask client for more data
     else {
       var place = files[recv.name].progress / 524288;
       var progress = files[recv.name].progress / files[recv.name].size * 100;
@@ -461,10 +468,15 @@ io.on('connection', function(socket){
   });
 
   socket.on('update_roomlist', function(recv, fn){
-    if (String(recv.owner) === String(socket.user)){
       Room.findById(recv.room, function(err, room){
         if (err) return console.log(err);
-        var penpalUid = (room.users[0] === recv.owner) ? room.users[1] : room.users[0];
+        var penpalUid;
+        if (String(recv.owner) === String(socket.user)){
+          penpalUid = (String(recv.owner) === String(room.users[0])) ? room.users[1] : room.users[0];
+        }
+        else {
+          penpalUid = recv.owner;
+        }
         User.findById(penpalUid, function(err, user){
           if (err) return console.log(err);
           var penpal = {
@@ -479,22 +491,6 @@ io.on('connection', function(socket){
           fn(JSON.stringify({room: recv.room, update: {lastMessage: recv, penpal: penpal}}));
         });
       });
-    }
-    else {
-      User.findById(recv.owner, function(err, user){
-        if (err) return console.log(err);
-        var penpal = {
-          'uid': user._id,
-          'user': user.user,
-          'name': user.name,
-          'status': users[user._id] && users[user._id].status || 'offline',
-          'avatar': user.avatar,
-          'service': user.service,
-          'direction': user.direction
-        };
-        fn(JSON.stringify({room: recv.room, update: {lastMessage: recv, penpal: penpal}}));
-      });
-    }
   });
 });
 

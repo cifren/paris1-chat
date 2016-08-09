@@ -33,13 +33,13 @@ class ChatBox extends React.Component {
     if (!this.state.minimized){
       chatBox = <div className="col-xs-12 col-md-12">
                   <div className="panel panel-default">
-                    <ChatBoxHeader notification={this.countNotifications().length} minimized={this.state.minimized} status={this.props.user.status}/>
+                    <ChatBoxHeader notification={this.countNotifications().length} minimized={this.state.minimized} status={this.props.user.status} currentTab={this.state.currentTab}/>
                     <div className="tab-content">
                       <ChatBoxHome user={this.props.user} directionList={this.props.directionList} favList={this.props.favList}
-                      searchState={this.props.searchState} searchList={this.props.searchList}/>
-                      <ChatBoxMessage searchState={this.props.searchState} searchList={this.props.searchList} roomList={this.props.roomList}/>
-                      <ChatBoxOptions user={this.props.user} preferences={this.props.preferences}/>
-                      <ChaBoxAbout />
+                      searchState={this.props.searchState} searchList={this.props.searchList} currentTab={this.state.currentTab}/>
+                      <ChatBoxMessage searchState={this.props.searchState} searchList={this.props.searchList} roomList={this.props.roomList} currentTab={this.state.currentTab}/>
+                      <ChatBoxOptions user={this.props.user} preferences={this.props.preferences} currentTab={this.state.currentTab}/>
+                      <ChaBoxAbout currentTab={this.state.currentTab}/>
                     </div>
                     {searchInput}
                   </div>

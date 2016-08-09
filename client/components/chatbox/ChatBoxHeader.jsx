@@ -5,10 +5,10 @@ class ChatBoxHeader extends React.Component {
     super(props);
   }
   handleClickDisconnect(){
-    window.dispatchEvent(new Event("disconnect"));
+    window.dispatchEvent(new Event("close_chat"));
   }
   handleClickMinimize(){
-    window.dispatchEvent(new CustomEvent("min_max_box", {detail: {box: "chatbox"}}));
+    window.dispatchEvent(new Event("min_max_box"));
   }
 
   render() {
@@ -18,13 +18,13 @@ class ChatBoxHeader extends React.Component {
     return (
         <div>
           <ul className="nav nav-tabs" role="tablist">
-            <li role="presentation" className="active">
+            <li role="presentation" className={(this.props.currentTab === "home") ? "active" : null}>
               <a href="#home" aria-controls="home" role="tab" data-toggle="tab" title="Accueil"><span className="glyphicon glyphicon-home"></span></a>
             </li>
-            <li role="presentation">
+            <li role="presentation" className={(this.props.currentTab === "message") ? "active" : null}>
               <a href="#message" aria-controls="message" role="tab" data-toggle="tab" title="Mes messages">{messageIcon}</a>
             </li>
-            <li style={styleOptionLi} role="presentation" className="dropdown">
+            <li style={styleOptionLi} role="presentation" className="dropdown" className={(this.props.currentTab === "about" || this.props.currentTab === "options") ? "active" : null}>
               <a style={styleOptionA} href="#" className="dropdown-toggle" data-toggle="dropdown"><span className="glyphicon glyphicon-option-horizontal"></span></a>
               <ul className="dropdown-menu dropdown-menu-right">
                 <li><a role="tab" data-toggle="tab" aria-controls="options" href="#options">Options</a></li>

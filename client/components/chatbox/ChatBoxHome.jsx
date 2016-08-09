@@ -22,7 +22,7 @@ class ChatBoxHome extends React.Component {
       }
     }
     return (
-      <div role="tabpanel" className="tab-pane fade active in" id="home">
+      <div role="tabpanel" className={(this.props.currentTab === "home") ? "tab-pane fade active in" : "tab-pane fade"} id="home">
         {offlineInfo}
         {searchList}
         {directionList}

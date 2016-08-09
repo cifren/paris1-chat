@@ -61,13 +61,14 @@ class Chat extends React.Component {
   }
 
   closeChat(){
-    this.socket.disconnect();
+    //this.socket.disconnect();
+    this.socket.emit('close_chat')
     document.getElementById('app').style.display = "none";
   }
 
   componentDidMount() {
     // DOM events
-    window.addEventListener('disconnect', this.closeChat);
+    window.addEventListener('close_chat', this.closeChat);
     window.addEventListener('change_status', this.setStatus);
     window.addEventListener('manage_sound', this.manageSound);
     window.addEventListener('user_button', this.loadMsgBox);
@@ -81,7 +82,8 @@ class Chat extends React.Component {
     window.addEventListener('change_display_order', this.changeDisplayOrder);
 
     //TODO : Ne pas utiliser Jquery
-    $('a[data-toggle="tab"]').on('shown.bs.tab', this.clickOnTab);
+    //$('a[data-toggle="tab"]').on('shown.bs.tab', this.clickOnTab);
+    $(document).on('shown.bs.tab', 'a[data-toggle="tab"]', this.clickOnTab);
   }
 
   socketEventListener(){
@@ -245,11 +247,9 @@ class Chat extends React.Component {
   }
 
   clickOnTab(event){
-
     let currentTab = event.target.getAttribute('aria-controls');
     this.state.chatBox.currentTab = currentTab;
     this.setState({chatBox: this.state.chatBox});
-
     if (this.state.searchState){
       document.getElementById('search').value = "";
       this.setState({searchList: {}});
@@ -325,15 +325,8 @@ class Chat extends React.Component {
   }
 
   minMaxBox(event){
-    let boxId = event.detail.box;
-    if (boxId === "chatbox"){
-      this.state.chatBox.minimized = (this.state.chatBox.minimized) ? false : true;
-      this.setState({chatBox: this.state.chatBox});
-    }
-    else {
-      this.state.activeRooms[boxId].minimized = (this.state.activeRooms[boxId].minimized) ? false : true;
-      this.setState({activeRooms: this.state.activeRooms});
-    }
+    this.state.chatBox.minimized = (this.state.chatBox.minimized) ? false : true;
+    this.setState({chatBox: this.state.chatBox});
   }
 
   sendMessage(event){

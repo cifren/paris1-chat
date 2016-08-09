@@ -27,11 +27,13 @@ class MsgBoxBody extends React.Component {
   }
 
   render() {
+    for (let i in this.props.room.messages){
+      if (typeof this.props.room.messages[i].html === "undefined"){
+        this.isMessageHTML(this.props.room.messages[i]);
+      }
+    }
     let msgTab = [];
     let messages = this.props.room.messages.map((message, i) => {
-      if (typeof message.html === "undefined"){
-        this.isMessageHTML(message);
-      }
       let isLastMessage = (i === this.props.room.messages.length - 1) ? true : false;
       if (!message.html && !isLastMessage){
         let curMessageTime = new Date(message.posted);
@@ -39,7 +41,8 @@ class MsgBoxBody extends React.Component {
         let nextMessageTime = new Date(this.props.room.messages[i+1].posted);
         let nextMessageOwner = this.props.room.messages[i+1].owner;
         let deltaTime = nextMessageTime - curMessageTime;
-        if (deltaTime < 60000 && curMessageOwner === nextMessageOwner){
+        let nextMessageHTML = this.props.room.messages[i+1].html;
+        if (deltaTime < 60000 && curMessageOwner === nextMessageOwner && typeof nextMessageHTML !== "object"){
           msgTab.push(message.text);
           return;
         }

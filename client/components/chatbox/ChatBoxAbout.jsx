@@ -8,7 +8,7 @@ class ChatBoxAbout extends React.Component {
 
   render() {
     return (
-      <div role="tabpanel" className="tab-pane fade" id="about">
+      <div role="tabpanel" className={(this.props.currentTab === "about") ? "tab-pane fade active in" : "tab-pane fade"} id="about">
         <h5 className="title">
           Paris 1 Chat
         </h5>

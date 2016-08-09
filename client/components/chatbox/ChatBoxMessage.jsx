@@ -15,7 +15,7 @@ class ChatBoxMessage extends React.Component {
       roomList = <ChatBoxBodySection title="Mes messages" list={this.props.roomList} noUserMessage="Vous n'avez aucun message."/>
     }
     return (
-      <div role="tabpanel" className="tab-pane fade" id="message">
+      <div role="tabpanel" className={(this.props.currentTab === "message") ? "tab-pane fade active in" : "tab-pane fade"} id="message">
         {searchList}
         {roomList}
       </div>
