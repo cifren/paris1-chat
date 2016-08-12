@@ -44,6 +44,7 @@ class Chat extends React.Component {
     this.manageSound = this.manageSound.bind(this);
     this.uploadProgress = this.uploadProgress.bind(this);
     this.sendMoreData = this.sendMoreData.bind(this);
+    this.favClick = this.favClick.bind(this);
 
     this.connectToServer();
 
@@ -80,6 +81,7 @@ class Chat extends React.Component {
     window.addEventListener('user_typing', this.userTyping);
     window.addEventListener('upload_file', this.uploadFile);
     window.addEventListener('change_display_order', this.changeDisplayOrder);
+    window.addEventListener('fav_click', this.favClick);
 
     //TODO : Ne pas utiliser Jquery
     //$('a[data-toggle="tab"]').on('shown.bs.tab', this.clickOnTab);
@@ -294,7 +296,6 @@ class Chat extends React.Component {
   }
 
   manageFavList(event){
-    let evtRoom = event.detail.room;
     let evtUser = event.detail.user;
     let action = (evtUser.isFav) ? 'del' : 'add';
     this.socket.emit('manage_fav_list', {action: action, user: evtUser.uid});
@@ -329,6 +330,66 @@ class Chat extends React.Component {
     this.setState({chatBox: this.state.chatBox});
   }
 
+  favClick(event){
+    let penpal = event.detail.user;
+    let mousePosX = event.detail.mousePosX;
+    let mousePosY = event.detail.mousePosY;
+    let body = document.body;
+
+    let removeMenu = function(e){
+      if (e && e.type === 'contextmenu'){
+        console.log(e);
+        e.preventDefault();
+      }
+      if (document.getElementById('context-menu-layer')){
+        document.body.removeChild(document.getElementById('context-menu-layer'));
+      }
+      if (document.getElementById('context-menu')){
+        document.body.removeChild(document.getElementById('context-menu'));
+      }
+    }
+
+    console.log(penpal);
+    console.log(body);
+    console.log(mousePosX);
+    console.log(mousePosY);
+
+    removeMenu();
+
+    let contextMenuLayer = document.createElement('div');
+    contextMenuLayer.setAttribute('id', 'context-menu-layer');
+    body.appendChild(contextMenuLayer);
+    contextMenuLayer.onclick = removeMenu;
+    contextMenuLayer.oncontextmenu = removeMenu;
+
+    let contextMenu = document.createElement('ul');
+    contextMenu.setAttribute('id', 'context-menu');
+    contextMenu.setAttribute('class', 'dropdown-menu');
+    body.appendChild(contextMenu);
+    contextMenu.style.left = mousePosX + "px";
+    contextMenu.style.top = mousePosY + "px";
+    contextMenu.onclick = removeMenu;
+    contextMenu.oncontextmenu = removeMenu;
+
+    let li = document.createElement('li');
+    contextMenu.appendChild(li);
+
+    let a = document.createElement('a');
+    li.appendChild(a);
+    a.onclick = function(e) {
+      window.dispatchEvent(new CustomEvent('fav_button', {detail: {user: penpal}}));
+    }
+
+    if (this.state.favList[penpal.uid]){
+      penpal.isFav = true;
+      a.innerHTML = "Retirer des favoris";
+    }
+    else {
+      penpal.isFav = false;
+      a.innerHTML = "Ajouter aux favoris";
+    }
+  }
+
   sendMessage(event){
     let message = event.detail;
     this.socket.emit('send_message', message);
@@ -356,11 +417,13 @@ class Chat extends React.Component {
       this.socket.emit("upload_file", {'name': file.name, 'owner': this.state.user.uid, 'type': file.type, 'size': file.size, 'data': data}, function(data){
         let recv = JSON.parse(data);
         if (recv.successful){
+          console.log(recv);
           window.dispatchEvent(new CustomEvent("send_message", {
             detail: {
               room: room,
               text: recv.link,
-              receiver: penpal.uid
+              receiver: penpal.uid,
+              isLink: true
             }
           }));
         }

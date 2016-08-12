@@ -33,8 +33,9 @@ class Message extends React.Component {
       }
       return <div key={i}>{line}<br/></div>;
     });
-    if (typeof this.props.message.html === "object"){
-      message_content = <div className="messages" dangerouslySetInnerHTML={this.props.message.html}></div>;
+    if (this.props.message.isLink){
+      let htmlObj = {__html: this.props.message.text};
+      message_content = <div className="messages" dangerouslySetInnerHTML={htmlObj}></div>;
     }
     else {
       message_content = <div className="messages">{messageText}</div>;
@@ -43,7 +44,7 @@ class Message extends React.Component {
     if (!this.props.owned){
       message =   <div>
                     <div className="avatar-container col-md-2 col-xs-2">
-                      <Avatar url={this.props.avatar}/>
+                      <Avatar uid={this.props.avatar}/>
                     </div>
                     <div className="col-md-10 col-xs-10">
                       {message_content}
@@ -56,7 +57,7 @@ class Message extends React.Component {
                       {message_content}
                     </div>
                     <div className="avatar-container col-md-2 col-xs-2">
-                      <Avatar url={this.props.avatar}/>
+                      <Avatar penpal={this.props.avatar}/>
                     </div>
                   </div>;
 

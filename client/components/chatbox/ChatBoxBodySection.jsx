@@ -1,5 +1,6 @@
 import React from 'react';
 import UserButton from './UserButton.jsx'
+//import {ContextMenu, MenuItem, ContextMenuLayer} from 'react-contextmenu';
 
 class ChatBoxBodySection extends React.Component {
   constructor(props) {
@@ -61,7 +62,7 @@ class ChatBoxBodySection extends React.Component {
           return;
         }
         if (this.props.list[key].lastMessage){
-          return <UserButton user={this.props.list[key].penpal} lastMessage={this.props.list[key].lastMessage} key={i}/>
+          return <UserButton user={this.props.list[key].penpal} lastMessage={this.props.list[key].lastMessage} key={i}/>;
         }
         return <UserButton user={this.props.list[key]} key={i}/>;
       });
@@ -82,5 +83,25 @@ class ChatBoxBodySection extends React.Component {
     );
   }
 }
+
+// class CustomContextMenu extends React.Component {
+//   constructor(){
+//     super();
+//   }
+
+//   handleClick(e, data) {
+//       console.log(data);
+//   }
+
+//   render() {
+//       return (
+//           <ContextMenu identifier="context-menu" currentItem={this.currentItem}>
+//               <MenuItem data={"some_data"} onClick={this.handleClick}>
+//                   ContextMenu Item 1
+//               </MenuItem>
+//           </ContextMenu>
+//       );
+//   }
+// }
 
 export default ChatBoxBodySection;

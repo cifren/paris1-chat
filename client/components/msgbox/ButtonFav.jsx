@@ -6,9 +6,7 @@ class ButtonFav extends React.Component {
     this.handleClick = this.handleClick.bind(this);
   }
   handleClick(e){
-    e.stopPropagation();
-    let evt = new CustomEvent('fav_button', {detail: {user: this.props.room.penpal, room: this.props.room.room}});
-    window.dispatchEvent(evt);
+    window.dispatchEvent(new CustomEvent('fav_button', {detail: {user: this.props.room.penpal}}));
   }
   render() {
     let favStyle = {"marginRight": "0px"};

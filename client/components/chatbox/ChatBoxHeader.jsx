@@ -4,7 +4,11 @@ class ChatBoxHeader extends React.Component {
   constructor(props){
     super(props);
   }
-  handleClickDisconnect(){
+  stopEvtPropagation(e){
+    e.stopPropagation();
+  }
+  handleClickDisconnect(e){
+    e.stopPropagation();
     window.dispatchEvent(new Event("close_chat"));
   }
   handleClickMinimize(){
@@ -17,14 +21,14 @@ class ChatBoxHeader extends React.Component {
     let styleOptionA = {"marginRight": "0px"};
     return (
         <div>
-          <ul className="nav nav-tabs" role="tablist">
-            <li role="presentation" className={(this.props.currentTab === "home") ? "active" : null}>
+          <ul onClick={this.handleClickMinimize} className="nav nav-tabs chatbox-header" role="tablist">
+            <li onClick={this.stopEvtPropagation} role="presentation" className={(this.props.currentTab === "home") ? "active" : null}>
               <a href="#home" aria-controls="home" role="tab" data-toggle="tab" title="Accueil"><span className="glyphicon glyphicon-home"></span></a>
             </li>
-            <li role="presentation" className={(this.props.currentTab === "message") ? "active" : null}>
+            <li onClick={this.stopEvtPropagation} role="presentation" className={(this.props.currentTab === "message") ? "active" : null}>
               <a href="#message" aria-controls="message" role="tab" data-toggle="tab" title="Mes messages">{messageIcon}</a>
             </li>
-            <li style={styleOptionLi} role="presentation" className="dropdown" className={(this.props.currentTab === "about" || this.props.currentTab === "options") ? "active" : null}>
+            <li onClick={this.stopEvtPropagation} style={styleOptionLi} role="presentation" className="dropdown" className={(this.props.currentTab === "about" || this.props.currentTab === "options") ? "active" : null}>
               <a style={styleOptionA} href="#" className="dropdown-toggle" data-toggle="dropdown"><span className="glyphicon glyphicon-option-horizontal"></span></a>
               <ul className="dropdown-menu dropdown-menu-right">
                 <li><a role="tab" data-toggle="tab" aria-controls="options" href="#options">Options</a></li>

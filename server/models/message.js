@@ -29,6 +29,11 @@ var MessageSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
     required: true
+  },
+  isLink: {
+    type: Boolean,
+    default: false,
+    required: true
   }
 });
 

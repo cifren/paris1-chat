@@ -3,7 +3,6 @@
 // Configuration
 var config = require('./config');
 var reverse_proxy_auth = true;
-var avatar_url = "https://photo-ldap.univ-paris1.fr/ldap.php?test=1&uid=";
 
 var port = process.env.PORT || 6000;
 
@@ -57,15 +56,11 @@ function createStructures(data){
   for (var str in data){
     structures[data[str].supannCodeEntite[0]] = data[str].ou && data[str].ou[0] || data[str].supannCodeEntite[0];
   }
-}
-
-function get_avatar_url(user) {
-  var ldapUid = user.split('@')[0];
-  return avatar_url + ldapUid;
+  structures["guest"] = "Visiteur";
 }
 
 function getDirection(service){
-  if (service.length < 4)
+  if (service.length < 4 || service === "guest")
     return service
   else
     return service.substring(0, 3);
@@ -85,7 +80,6 @@ function sendDirectionList(socket, user){
         'user': users[usr].user,
         'name': users[usr].name,
         'status': users[usr].status,
-        'avatar': users[usr].avatar,
         'service': users[usr].service,
         'direction': users[usr].direction
       };
@@ -105,7 +99,6 @@ function sendFavList(socket, user){
         'user': fav_list[i].user,
         'name': fav_list[i].name,
         'status': users[fav_list[i]._id] && users[fav_list[i]._id].status || 'offline',
-        'avatar': fav_list[i].avatar,
         'service': fav_list[i].service,
         'direction': fav_list[i].direction
       };
@@ -135,7 +128,6 @@ function sendRoomList(socket, user){
           'user': result.findPenpal.user,
           'name': result.findPenpal.name,
           'status': users[result.findPenpal._id] && users[result.findPenpal._id].status || 'offline',
-          'avatar': result.findPenpal.avatar,
           'service': result.findPenpal.service,
           'direction': result.findPenpal.direction
         };
@@ -168,7 +160,6 @@ function addUserToChat(socket, user, fn){
     'user': user.user,
     'name': user.name,
     'status': user.status,
-    'avatar': user.avatar,
     'service': user.service,
     'direction': user.direction,
     'favorites': user.favorites
@@ -208,6 +199,10 @@ io.on('connection', function(socket){
       return;
     }
 
+    if (!recv.service || recv.service.length === 0){
+      recv.service = "guest";
+    }
+
     User.findOne({user: recv.user}, function(err, user){
       if (err) return console.log(err);
       // Create a new user
@@ -215,7 +210,6 @@ io.on('connection', function(socket){
         var newUser = new User({
             user: recv.user,
             name: recv.name,
-            avatar: get_avatar_url(recv.user),
             service: [recv.service, structures[recv.service]],
             direction: [getDirection(recv.service), structures[getDirection(recv.service)]]
         });
@@ -287,10 +281,15 @@ io.on('connection', function(socket){
         socket.emit('custom_error', { message: 'Error, the message wont be save' });
       }
       else {
+        if (!recv.isLink && recv.text.match(/https?:\/\/.*/gi)){
+          recv.text = "<a target='_blank' href='" + recv.text + "'>" + recv.text + "</a>";
+          recv.isLink = true;
+        }
         var newMessage = new Message({
           room: room._id,
           owner: users[socket.user].uid,
-          text: recv.text
+          text: recv.text,
+          isLink: recv.isLink
         }).save(function(err, newMessage){
           if (err) return console.log(err);
           io.to(users[socket.user].uid).emit('chat', JSON.stringify( {'action': 'message', 'data': newMessage}));
@@ -303,12 +302,16 @@ io.on('connection', function(socket){
   });
 
   // Event received when user has disconnected
-  // socket.on('disconnect', function () {
-  //   if (users[socket.user]) {
-  //     socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_disconnected', 'user': users[socket.user]} ));
-  //     delete users[socket.user];
-  //   }
-  // });
+  socket.on('disconnect', function () {
+    socket.leave(socket.user);
+    var clients = io.sockets.adapter.rooms[socket.user];
+    if (typeof clients === "undefined"){
+      if (users[socket.user]) {
+        socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_disconnected', 'user': users[socket.user]} ));
+        delete users[socket.user];
+      }
+    }
+  });
 
   socket.on('close_chat', function(){
     if (users[socket.user]) {
@@ -380,7 +383,6 @@ io.on('connection', function(socket){
             'user': results[usr].user,
             'name': results[usr].name,
             'status': users[results[usr]._id] && users[results[usr]._id].status || "offline",
-            'avatar': results[usr].avatar,
             'service': results[usr].service,
             'direction': results[usr].direction
           }
@@ -434,14 +436,16 @@ io.on('connection', function(socket){
       fs.write(files[recv.name].handler, files[recv.name].data, null, 'Binary', function(err, writen){
       if (err) return console.log(err);
         var formData = {
-          owner: recv.owner,
+          owner: users[recv.owner] && users[recv.owner].user || recv.owner,
           upload: fs.createReadStream(files[recv.name].path)
         };
         request.post({url: 'https://filex-test.univ-paris1.fr/trusted-upload', formData: formData}, function(err, res, body){
           if (err) return console.log(err);
           if (body.match(/https:\/\/filex(-test)\.univ-paris1\.fr\/get\?k=[0-9A-za-z]+/)){
-            if (typeof fn !== 'undefined')
-              fn(JSON.stringify({successful: true, link: body}));
+            var link = "<a href='" + body + "&auto=1'>" + recv.name + "</a>";
+            if (typeof fn !== 'undefined'){
+              fn(JSON.stringify({"successful": true, "link": link}));
+            }
           }
           fs.unlink(files[recv.name].path, function(err){
             if (err) return console.log(err);
@@ -484,7 +488,6 @@ io.on('connection', function(socket){
             'user': user.user,
             'name': user.name,
             'status': users[user._id] && users[user._id].status || 'offline',
-            'avatar': user.avatar,
             'service': user.service,
             'direction': user.direction
           };

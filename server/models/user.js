@@ -25,10 +25,6 @@ var UserSchema = mongoose.Schema({
     required: false,
     trim: true
   },
-  avatar: {
-    type: String,
-    required: false
-  },
   service: [{
     type: String,
     required: false
