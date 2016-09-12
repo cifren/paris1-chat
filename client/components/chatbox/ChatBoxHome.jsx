@@ -10,7 +10,7 @@ class ChatBoxHome extends React.Component {
   render() {
     let offlineInfo, directionList, favList, searchList;
     if (this.props.user.status === 'offline'){
-      offlineInfo = <div><p>Vous êtes déconnecté du serveur de messagerie instantanée.</p><p>Pour vous connecter cliquez sur le bouton en haut à droite de cette fenêtre.</p></div>;
+      offlineInfo = <div><p>Vous êtes déconnecté du serveur de messagerie instantanée.</p><p>Vous pouvez rafraichir la page pour vous reconnecter.</p></div>;
     }
     else {
       if (this.props.searchState){

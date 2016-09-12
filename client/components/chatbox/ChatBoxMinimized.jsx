@@ -28,7 +28,7 @@ class ChatBoxMinimized extends React.Component {
     }
     let messageIcon = (this.props.notification.length > 0) ? <span data-toggle="tooltip" title={badgeTitle} style={spanStyle} className="badge">{this.props.notification.length}</span> : <span style={spanStyle} className="glyphicon glyphicon-comment"></span>;
     return (
-      <div onClick={this.handleClick} className="chatbox-minimized"><UserStatus status={this.props.status}/>Chat Paris 1{messageIcon}</div>
+      <div onClick={this.handleClick} className="chatbox-minimized"><UserStatus status={this.props.status}/>Tchat Paris 1{messageIcon}</div>
     );
   }
 }

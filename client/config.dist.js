@@ -1,4 +1,5 @@
 export const clientConfig = {
-  server_uri: '',
+  websocket_host: '',
+  websocket_path: '',
   avatar_base_url: ''
 };

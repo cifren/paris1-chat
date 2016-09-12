@@ -18,7 +18,7 @@ class Chat extends React.Component {
       activeRooms: {},
       activeRoom: {},
       user: {status: 'offline'},
-      chatBox: {minimized: false, currentTab: 'home'},
+      chatBox: {minimized: true, currentTab: 'home'},
       preferences: {sound: true, lang: 'fr'}
     };
     this.closeChat = this.closeChat.bind(this);
@@ -50,8 +50,15 @@ class Chat extends React.Component {
 
   }
 
+  setChatBoxSize(){
+    if (document.location.hash === "#maximized"){
+      this.state.chatBox.minimized = false;
+      this.setState({chatBox: this.state.chatBox});
+    }
+  }
+
   connectToServer(){
-    this.socket = io.connect(config.server_uri, {reconnect: true});
+    this.socket = io.connect(config.websocket_host, {reconnect: true, path: config.websocket_path});
     this.socket.emit('join', function (data) {
       let recv = JSON.parse(data);
       if (recv.login === 'successful'){
@@ -62,12 +69,16 @@ class Chat extends React.Component {
   }
 
   closeChat(){
-    //this.socket.disconnect();
     this.socket.emit('close_chat')
     document.getElementById('app').style.display = "none";
+    if (document.cookie.indexOf('pE-tchat=yes') > -1){
+      document.cookie = "pE-tchat=;domain=.univ-paris1.fr;path=/;expires=Thu, 01 Jan 1970 00:00:01 GMT";
+    }
   }
 
   componentDidMount() {
+
+    this.setChatBoxSize();
     // DOM events
     window.addEventListener('close_chat', this.closeChat);
     window.addEventListener('change_status', this.setStatus);
@@ -84,7 +95,6 @@ class Chat extends React.Component {
     window.addEventListener('fav_click', this.favClick);
 
     //TODO : Ne pas utiliser Jquery
-    //$('a[data-toggle="tab"]').on('shown.bs.tab', this.clickOnTab);
     $(document).on('shown.bs.tab', 'a[data-toggle="tab"]', this.clickOnTab);
   }
 
@@ -101,6 +111,8 @@ class Chat extends React.Component {
         activeRoom: {},
         roomList: {}
       });
+      let target = parent.postMessage ? parent : (parent.document.postMessage ? parent.document : undefined);
+      target.postMessage("ProlongationENT:disconnect", "*");
     }.bind(this));
     this.socket.on('chat', function(data){
       let recv = JSON.parse(data);
@@ -325,9 +337,18 @@ class Chat extends React.Component {
     }.bind(this), 800);
   }
 
-  minMaxBox(event){
+  minMaxBox(){
     this.state.chatBox.minimized = (this.state.chatBox.minimized) ? false : true;
     this.setState({chatBox: this.state.chatBox});
+
+    // Send a post message
+    let target = parent.postMessage ? parent : (parent.document.postMessage ? parent.document : undefined);
+    let message = this.state.chatBox.minimized ? "ProlongationENT:tchat:minimize" : "ProlongationENT:tchat:maximize";
+    target.postMessage(message, "*");
+
+    // Store size in local storage
+    // let storedSize = this.state.chatBox.minimized ? "minimized" : "maximized";
+    // localStorage.setItem("pE-tchat-size", storedSize);
   }
 
   favClick(event){
@@ -338,7 +359,6 @@ class Chat extends React.Component {
 
     let removeMenu = function(e){
       if (e && e.type === 'contextmenu'){
-        console.log(e);
         e.preventDefault();
       }
       if (document.getElementById('context-menu-layer')){
@@ -348,11 +368,6 @@ class Chat extends React.Component {
         document.body.removeChild(document.getElementById('context-menu'));
       }
     }
-
-    console.log(penpal);
-    console.log(body);
-    console.log(mousePosX);
-    console.log(mousePosY);
 
     removeMenu();
 
@@ -366,7 +381,12 @@ class Chat extends React.Component {
     contextMenu.setAttribute('id', 'context-menu');
     contextMenu.setAttribute('class', 'dropdown-menu');
     body.appendChild(contextMenu);
-    contextMenu.style.left = mousePosX + "px";
+    if (document.body.clientWidth - (mousePosX + contextMenu.offsetWidth) < 0){
+      contextMenu.style.left = mousePosX + (document.body.clientWidth - (mousePosX + contextMenu.offsetWidth)) + "px";
+    }
+    else {
+      contextMenu.style.left = mousePosX + "px";
+    }
     contextMenu.style.top = mousePosY + "px";
     contextMenu.onclick = removeMenu;
     contextMenu.oncontextmenu = removeMenu;

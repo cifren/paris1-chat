@@ -84,7 +84,7 @@ a > span, .badge{
 
 .tab-content{
   overflow-y: auto;
-  height: 323px;
+  height: 360px;
 }
 
 /*Msgbox CSS*/
@@ -95,7 +95,8 @@ a > span, .badge{
 .panel{
   height: 400px;
   margin-bottom: 0px;
-  border-bottom: 0px;
+  border-bottom-right-radius: 0px;
+  border-bottom-left-radius: 0px;
 }
 
 .container{
@@ -109,32 +110,26 @@ a > span, .badge{
   z-index: 0;
 }
 
-.chat-window{
-  width: 300px;
-  height: 400px;
-  bottom:0;
-  right: 0;
-  margin-right: 10px;
-  position:fixed;
-  float:right;
-  margin-left:10px;
-  z-index: 0;
-}
-
 .tooltip{
   white-space: nowrap;
 }
 
-.msg-window{
-  width: 300px;
+.window{
+  width: 270px;
   height: 400px;
-  bottom: 0;
+  padding: 0px;
+  bottom:0;
   right: 0;
-  margin-right: 10px;
   position:fixed;
   float:right;
-  margin-left:10px
+}
+
+.window-msg{
   z-index: 100;
+}
+
+.window-chat{
+  z-index: 0;
 }
 
 .chat-window > div > .panel{
@@ -159,7 +154,7 @@ a > span, .badge{
 .chatbox-minimized{
   position: absolute;
   bottom: 0px;
-  right: 10px;
+  right: 0px;
   width: 150px;
   height: 30px;
   color: #333;
@@ -199,6 +194,7 @@ a > span, .badge{
   padding: 5px;
   border-radius: 2px;
   max-width:100%;
+  text-overflow: clip;
 }
 
 .msg_container {
@@ -281,7 +277,7 @@ img {
 .input_file_upload{
   display: block;
   float: left;
-  height: 50%;
+  height: 14px;
   background-color: white;
   box-sizing:border-box;
   padding-left:4px;
@@ -315,10 +311,12 @@ img {
   position: absolute;
   bottom: 0px;
   width: 268px;
-  border-top: 1px solid #ddd;
+  height: 36px;
 }
 
 #search{
+  border-radius: 0px;
+  border-top: 1px solid #ddd;
   border: 0px;
   width: 100%;
 }

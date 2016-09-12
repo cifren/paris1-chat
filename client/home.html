@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv='content-type' content='text/html; charset=UTF-8' />
+    <title>Paris 1 Chat</title>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+    <script>
+      window.prolongation_ENT_args = { current: 'tchat' };
+      function manageCookie(){
+        if (document.cookie.indexOf('pE-tchat=yes') > 0){
+          document.cookie = "pE-tchat=no;domain=.univ-paris1.fr;path=/;";
+          $('#info').removeClass("alert-success").addClass("alert-danger").text(chatDisabledInfo);
+          $('#info').append('<a href="#" id="cookie-btn" style="float: right; height: 100%; width: 50px; text-align: center;" onClick="manageCookie()" data-toggle="tooltip"><span class="glyphicon glyphicon-refresh" aria-hidden="true"></span></a>');
+        }
+        else {
+          document.cookie = "pE-tchat=yes;domain=.univ-paris1.fr;path=/;";
+          $('#info').removeClass("alert-danger").addClass("alert-success").text(chatEnabledInfo);
+          $('#info').append('<a href="#" id="cookie-btn" style="float: right; height: 100%; width: 50px; text-align: center;" onClick="manageCookie()" data-toggle="tooltip"><span class="glyphicon glyphicon-refresh" aria-hidden="true"></span></a>');
+        }
+      }
+    </script>
+    <script src="https://ent-test.univ-paris1.fr/ProlongationENT/loader.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <div class="row">
+        <div class="col-xs-12">
+        <h4>Activation du tchat</h4>
+        <p style="text-align: justify;">Lorsque le tchat est activé, vous pourrez le retrouvez en bas de page sur toutes les applications de l'ENT. Il est positionné au dessus du footer, comme sur cette page. Afin qu'il n'apparaisse plus, vous pouvez désactiver cette fonctionnalité sur cette page.</p>
+        </div>
+      </div>
+      <div class="row">
+        <div id="info" class="alert col-xs-8 col-xs-offset-2" role="alert"></div>
+      </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-2.2.3.min.js" integrity="sha256-a23g1Nt4dtEYOj7bR+vTu7+T8VP13humZFBJNIYoEJo=" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
+
+    <script>
+      var chatEnabledInfo = "Le tchat Paris 1 est activé pour votre navigateur. Le tchat apparaitra dans les applications de l'ENT.",
+          chatDisabledInfo = "Le tchat Paris 1 est désactivé pour votre navigateur. Le tchat n'apparaitra pas dans les applications de l'ENT.";
+      $(function(){
+        if (document.cookie.indexOf('pE-tchat=no') > 0){
+          $('#info').addClass("alert-danger").text(chatDisabledInfo);
+        }
+        else {
+          document.cookie = "pE-tchat=yes;domain=.univ-paris1.fr;path=/;";
+          $('#info').addClass("alert-success").text(chatEnabledInfo);
+        }
+        $('#info').append('<a href="#" id="cookie-btn" style="float: right; height: 100%; width: 50px; text-align: center;" onClick="manageCookie()" data-toggle="tooltip"><span class="glyphicon glyphicon-refresh" aria-hidden="true"></span></a>');
+      });
+    </script>
+  </body>
+</html>

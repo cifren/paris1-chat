@@ -2,15 +2,16 @@
 
 // Configuration
 var config = require('./config');
-var reverse_proxy_auth = true;
+var port = process.env.PORT || config.port;
 
-var port = process.env.PORT || 6000;
-
-var server   = require('http').createServer(),
-io       = require('socket.io').listen(server),
+var http   = require('http'),
+io       = require('socket.io')({path: "/sockets"}),
 mongoose = require('mongoose'),
 request  = require('request'),
 fs       = require('fs'),
+path     = require('path'),
+url      = require('url'),
+qs       = require('querystring'),
 LDAP     = require('ldap-client'),
 async    = require('async');
 
@@ -59,15 +60,16 @@ function createStructures(data){
   structures["guest"] = "Visiteur";
 }
 
-function getDirection(service){
-  if (service.length < 4 || service === "guest")
-    return service
-  else
-    return service.substring(0, 3);
-}
-
-function sendUserInfo(socket, user, fn){
-
+function getDirection(service, callback){
+  ldap.search({filter: "(supannCodeEntite=" + service + ")"}, function(err, data){
+    if (err) return console.log(err);
+    if (!data[0].up1Flags || data[0].up1Flags.indexOf("included") === -1){
+      callback(service);
+    }
+    else {
+      return getDirection(data[0].supannCodeEntiteParent[0], callback);
+    }
+  });
 }
 
 function sendDirectionList(socket, user){
@@ -187,12 +189,10 @@ io.on('connection', function(socket){
   socket.on('join', function (fn) {
 
     var recv = {};
-    if (reverse_proxy_auth) {
-      // Shibboleth auth using handshake's http headers
-      recv.user = socket.handshake.headers.eppn;
-      recv.name = socket.handshake.headers.displayname;
-      recv.service = socket.handshake.headers.supannentiteaffectationprincipale;
-    }
+    // Shibboleth auth using handshake's http headers
+    recv.user = socket.handshake.headers.eppn;
+    recv.name = socket.handshake.headers.displayname;
+    recv.service = socket.handshake.headers.supannentiteaffectationprincipale;
 
     if (!recv.user || !recv.name) {
       socket.emit('custom_error', { message: 'User not found or invalid' });
@@ -205,49 +205,55 @@ io.on('connection', function(socket){
 
     User.findOne({user: recv.user}, function(err, user){
       if (err) return console.log(err);
-      // Create a new user
-      if (!user) {
-        var newUser = new User({
-            user: recv.user,
-            name: recv.name,
-            service: [recv.service, structures[recv.service]],
-            direction: [getDirection(recv.service), structures[getDirection(recv.service)]]
-        });
-        newUser.save(function(err, newUser) {
-          if (err) return console.log(err);
-          var newPref = new Preference({user: newUser._id});
-          newPref.save(function(err, newPref){
-            if (err) return console.log(err);
-            addUserToChat(socket, newUser, fn);
+
+      // Get user's direction with LDAP search
+      getDirection(recv.service, function(direction){
+        // Create a new user
+        if (!user) {
+          var newUser = new User({
+              user: recv.user,
+              name: recv.name,
+              service: [recv.service, structures[recv.service]],
+              direction: [direction, structures[direction]]
           });
-        });
-      }
-      // Already registered user
-      else {
-        if (recv.name != user.name)
-          user.name = recv.name;
-        if (recv.service != user.service){
-            user.service = [recv.service, structures[recv.service]];
-            user.direction = [getDirection(recv.service), structures[getDirection(recv.service)]];
+          newUser.save(function(err, newUser) {
+            if (err) return console.log(err);
+            var newPref = new Preference({user: newUser._id});
+            newPref.save(function(err, newPref){
+              if (err) return console.log(err);
+              addUserToChat(socket, newUser, fn);
+            });
+          });
         }
-        user.save(function(err, user){
-          if(err) return console.log(err);
-          addUserToChat(socket, user, fn);
-        });
-      }
+        // Already registered user
+        else {
+          if (recv.name != user.name)
+            user.name = recv.name;
+          if (recv.service != user.service){
+              user.service = [recv.service, structures[recv.service]];
+              user.direction = [direction, structures[direction]];
+          }
+          user.save(function(err, user){
+            if(err) return console.log(err);
+            addUserToChat(socket, user, fn);
+          });
+        }
+      });
     });
   });
 
   // Event received when user want change his status
   socket.on('user_status', function (recv, fn) {
-    User.update({_id: recv.uid}, {$set: {status: recv.status}}, function(err, updated_user){
-      if (err) return console.log(err);
-      users[socket.user].status = recv.status;
-      socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_change_status', 'user': users[socket.user]}));
-      if (typeof fn !== "undefined"){
-        fn();
-      }
-    });
+    if (users[socket.user]){
+      User.update({_id: recv.uid}, {$set: {status: recv.status}}, function(err, updated_user){
+        if (err) return console.log(err);
+        users[socket.user].status = recv.status;
+        socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_change_status', 'user': users[socket.user]}));
+        if (typeof fn !== "undefined"){
+          fn();
+        }
+      });
+    }
   });
 
   socket.on('message_viewed', function(recv){
@@ -439,7 +445,7 @@ io.on('connection', function(socket){
           owner: users[recv.owner] && users[recv.owner].user || recv.owner,
           upload: fs.createReadStream(files[recv.name].path)
         };
-        request.post({url: 'https://filex-test.univ-paris1.fr/trusted-upload', formData: formData}, function(err, res, body){
+        request.post({url: config.upload_server, formData: formData}, function(err, res, body){
           if (err) return console.log(err);
           if (body.match(/https:\/\/filex(-test)\.univ-paris1\.fr\/get\?k=[0-9A-za-z]+/)){
             var link = "<a href='" + body + "&auto=1'>" + recv.name + "</a>";
@@ -498,6 +504,60 @@ io.on('connection', function(socket){
 });
 
 // Launch server
+var server = http.createServer(function(req, res){
+
+  var urlParts = url.parse(req.url, true);
+  var uri = urlParts.pathname;
+  if (uri === "/login") uri = "/";
+  var filename = path.join(__dirname, "../client" + uri);
+  console.log(filename);
+
+  if (!req.headers.cookie || req.headers.cookie.indexOf('_shibsession_') === -1){
+    var idpId = "";
+    if (urlParts.query.idpId){
+      idpId = "providerId=" + urlParts.query.idpId;
+      console.log(idpId);
+    }
+    var target = qs.escape("target=" + config.host + uri);
+    var urlForceIdp = config.shib_login + "?" +  idpId + "&" + target;
+    res.writeHead(302, {"Location": urlForceIdp});
+    res.end();
+    return;
+  }
+
+  fs.stat(filename, function(err, stat) {
+    if (err && err.code === "ENOENT") {
+      res.writeHead(404, {"Content-Type": "text/plain"});
+      res.write("404 Not Found\n");
+      res.end();
+      return;
+    }
+    else if (err){
+      console.log(err);
+      return;
+    }
+
+    if (fs.statSync(filename).isDirectory()){
+      filename += '/index.html';
+    }
+
+    fs.readFile(filename, "binary", function(err, file) {
+      if (err) {
+        res.writeHead(500, {"Content-Type": "text/plain"});
+        res.write(err + "\n");
+        res.end();
+        return;
+      }
+
+      res.writeHead(200);
+      res.write(file, "binary");
+      res.end();
+    });
+  });
+});
+
+io.attach(server);
+
 mongoose.connect('mongodb://localhost/p1chat');
 var mongoDb = mongoose.connection;
 mongoDb.on('error', console.error.bind(console, 'Can\'t connect to MongoDB.'));
