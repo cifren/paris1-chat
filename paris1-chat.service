@@ -1,0 +1,56 @@
+#!/bin/sh
+
+### BEGIN INIT INFO
+# Provides:         tchat
+# Required-Start:    $local_fs $remote_fs $network $syslog mongodb
+# Required-Stop:     $local_fs $remote_fs $network $syslog mongodb
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start/stop tchat server
+### END INIT INFO
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+APP=
+LOGFILE=/var/log/tchat/tchat.log
+NAME=tchat
+DESC=tchat
+USER=
+
+options="--id $NAME -a -l $LOGFILE"
+
+. /lib/lsb/init-functions
+
+set -e
+
+case "$1" in
+  start)
+	log_begin_msg "Starting $DESC:" "$NAME"
+	echo
+	sudo -u $USER forever $options start $APP 
+	log_end_msg $?
+        echo "$DESC started"
+	;;
+  stop)
+	log_begin_msg "Stopping $DESC:" "$NAME"
+	echo
+	sudo -u $USER forever stop $NAME
+	log_end_msg $?
+	;;
+  status)
+	sudo -u $USER forever list
+	;;
+  reload|force-reload)
+	sudo -u $USER forever $options restart $APP
+	;;
+  restart)
+	$0 stop
+	$0 start
+	;;
+  *)
+	N=/etc/init.d/$NAME
+	echo "Usage: $N {start|stop|restart|reload|force-reload}" >&2
+	exit 1
+	;;
+esac
+
+exit 0

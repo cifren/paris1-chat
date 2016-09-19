@@ -414,16 +414,16 @@ io.on('connection', function(socket){
   });
 
   socket.on('start_upload', function(recv){
-    var upload_dir = "./uploads";
+    var upload_dir = path.join(__dirname, "uploads");
     if (!fs.existsSync(upload_dir)){
       fs.mkdirSync(upload_dir);
     }
     files[recv.name] = {};
     files[recv.name].size = recv.size;
     files[recv.name].progress = 0;
-    files[recv.name].path = upload_dir + "/" + recv.name;
+    files[recv.name].path = path.join(upload_dir, recv.name);
     var place = 0;
-    fs.open("./uploads/" + recv.name, "a", "0755", function(err, fd){
+    fs.open(files[recv.name].path, "a", "0755", function(err, fd){
       if (err){
         console.log(err);
       }
@@ -510,13 +510,11 @@ var server = http.createServer(function(req, res){
   var uri = urlParts.pathname;
   if (uri === "/login") uri = "/";
   var filename = path.join(__dirname, "../client" + uri);
-  console.log(filename);
 
   if (!req.headers.cookie || req.headers.cookie.indexOf('_shibsession_') === -1){
     var idpId = "";
     if (urlParts.query.idpId){
       idpId = "providerId=" + urlParts.query.idpId;
-      console.log(idpId);
     }
     var target = qs.escape("target=" + config.host + uri);
     var urlForceIdp = config.shib_login + "?" +  idpId + "&" + target;
