@@ -1,5 +1,5 @@
 import React from 'react';
-import UserStatus from './UserStatus.jsx';
+import UserStatus from '../../core/UserStatus.jsx';
 
 class DropDownSound extends React.Component {
   constructor(){

@@ -84,24 +84,4 @@ class ChatBoxBodySection extends React.Component {
   }
 }
 
-// class CustomContextMenu extends React.Component {
-//   constructor(){
-//     super();
-//   }
-
-//   handleClick(e, data) {
-//       console.log(data);
-//   }
-
-//   render() {
-//       return (
-//           <ContextMenu identifier="context-menu" currentItem={this.currentItem}>
-//               <MenuItem data={"some_data"} onClick={this.handleClick}>
-//                   ContextMenu Item 1
-//               </MenuItem>
-//           </ContextMenu>
-//       );
-//   }
-// }
-
 export default ChatBoxBodySection;

@@ -1,5 +1,5 @@
 export const config = {
-  websocket_host: '',
+  server_url: '',
   websocket_path: '',
   avatar_base_url: ''
 };

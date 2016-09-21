@@ -19,7 +19,7 @@ class Chat extends React.Component {
       activeRoom: {},
       user: {status: 'offline'},
       chatBox: {minimized: true, currentTab: 'home'},
-      preferences: {sound: true, lang: 'fr'}
+      preferences: {sound: true, lang: 'fr', notificationsHTML5: false}
     };
     this.closeChat = this.closeChat.bind(this);
     this.setStatus = this.setStatus.bind(this);
@@ -45,6 +45,10 @@ class Chat extends React.Component {
     this.uploadProgress = this.uploadProgress.bind(this);
     this.sendMoreData = this.sendMoreData.bind(this);
     this.favClick = this.favClick.bind(this);
+    this.sendNotification = this.sendNotification.bind(this);
+    this.setRemotePreferences = this.setRemotePreferences.bind(this);
+    this.checkNotificationsHTML5 = this.checkNotificationsHTML5.bind(this);
+    this.toggleNotificationsHTML5 = this.toggleNotificationsHTML5.bind(this);
 
     this.connectToServer();
 
@@ -58,7 +62,7 @@ class Chat extends React.Component {
   }
 
   connectToServer(){
-    this.socket = io.connect(config.websocket_host, {reconnect: true, path: config.websocket_path});
+    this.socket = io.connect(config.server_url, {reconnect: true, path: config.websocket_path});
     this.socket.emit('join', function (data) {
       let recv = JSON.parse(data);
       if (recv.login === 'successful'){
@@ -91,11 +95,13 @@ class Chat extends React.Component {
     window.addEventListener('send_message', this.sendMessage);
     window.addEventListener('user_typing', this.userTyping);
     window.addEventListener('upload_file', this.uploadFile);
-    window.addEventListener('change_display_order', this.changeDisplayOrder);
     window.addEventListener('fav_click', this.favClick);
+    window.addEventListener('update_notificationsHTML5', this.toggleNotificationsHTML5);
 
     //TODO : Ne pas utiliser Jquery
     $(document).on('shown.bs.tab', 'a[data-toggle="tab"]', this.clickOnTab);
+
+    this.checkNotificationsHTML5();
   }
 
   socketEventListener(){
@@ -155,7 +161,7 @@ class Chat extends React.Component {
           this.penpalTyping(recv.data);
           break;
         case 'preferences':
-          this.setState({preferences: recv.data});
+          this.setRemotePreferences(recv.data);
           break;
         case 'send_more_data':
           this.sendMoreData(recv.data);
@@ -164,6 +170,44 @@ class Chat extends React.Component {
           console.log("Unknown action : " + recv.action);
       }
     }.bind(this));
+  }
+
+  checkNotificationsHTML5(){
+    if (window.Notification){
+      let localPermission = localStorage.getItem("notificationsHTML5");
+      if (localPermission !== "denied" || Notification.permission === "default"){
+        Notification.requestPermission(function(permission){
+          if (permission === "granted"){
+            this.state.preferences.notificationsHTML5 = true;
+            this.setState({preferences: this.state.preferences});
+          }
+          localStorage.setItem("notificationsHTML5", permission);
+        }.bind(this));
+      }
+    }
+  }
+
+  toggleNotificationsHTML5(){
+    if (window.Notification){
+      if (this.state.preferences.notificationsHTML5){
+        this.state.preferences.notificationsHTML5 = false;
+        localStorage.setItem("notificationsHTML5", "denied");
+        this.setState({preferences: this.state.preferences});
+      }
+      else {
+        Notification.requestPermission(function(permission){
+          this.state.preferences.notificationsHTML5 = (permission === "granted") ? true : false;
+          localStorage.setItem("notificationsHTML5", permission);
+          this.setState({preferences: this.state.preferences});
+        }.bind(this));
+      }
+    }
+  }
+
+  setRemotePreferences(data){
+    this.state.preferences.sound = data.sound;
+    this.state.preferences.lang = data.lang;
+    this.setState({preferences: this.state.preferences});
   }
 
   userTyping(event){
@@ -232,13 +276,21 @@ class Chat extends React.Component {
   }
 
   connectUser(user){
+    let notifyUser = true;
     if (this.state.user.uid !== user.uid && this.state.user.direction[0] === user.direction[0]){
       this.state.directionList[user.uid] = user;
       this.setState({directionList: this.state.directionList});
+      if (user.status === "online" || user.status === "busy"){
+        this.sendNotification(user.name + " est maintenant en ligne");
+        notifyUser = false;
+      }
     }
     if (this.state.favList[user.uid]){
       this.state.favList[user.uid] = user;
       this.setState({favList: this.state.favList});
+      if (notifyUser && user.status === "online" || user.status === "busy"){
+        this.sendNotification(user.name + " est maintenant en ligne");
+      }
     }
     this.updateActiveRoomStatus(user, user.status);
     this.updateRoomListStatus(user, user.status);
@@ -345,10 +397,6 @@ class Chat extends React.Component {
     let target = parent.postMessage ? parent : (parent.document.postMessage ? parent.document : undefined);
     let message = this.state.chatBox.minimized ? "ProlongationENT:tchat:minimize" : "ProlongationENT:tchat:maximize";
     target.postMessage(message, "*");
-
-    // Store size in local storage
-    // let storedSize = this.state.chatBox.minimized ? "minimized" : "maximized";
-    // localStorage.setItem("pE-tchat-size", storedSize);
   }
 
   favClick(event){
@@ -486,7 +534,20 @@ class Chat extends React.Component {
     }
   }
 
+  sendNotification(body){
+    if (this.state.preferences.notificationsHTML5){
+      var notification = new Notification("Tchat Paris 1", {
+        body: body,
+        icon: "./../tchat.png"
+      });
+      window.setTimeout(function(){
+        notification.close();
+      }, 5000);
+    }
+  }
+
   addMessageToRoom(message){
+    let notifyUser = true;
     if (this.state.activeRoom.room && this.state.activeRoom.room === message.room){
       if (message.owner !== this.state.user.uid){
         this.socket.emit('message_viewed', message);
@@ -495,11 +556,18 @@ class Chat extends React.Component {
       this.state.activeRoom.messages.push(message);
       this.setState({activeRoom: this.state.activeRoom});
       this.scrollDivToBottom();
+      if (window.hasFocus || message.owner === this.state.user.uid) {
+        notifyUser = false;
+      }
     }
+
     if (this.state.roomList[message.room]){
       this.state.roomList[message.room].lastMessage = message;
       this.setState({roomList: this.state.roomList});
       this.playNewMessageSound(message);
+      if (notifyUser){
+        this.sendNotification(this.state.roomList[message.room].penpal.name + " vous a envoyé un nouveau message.");
+      }
     }
     else {
       this.socket.emit("update_roomlist", message, function(data){
@@ -507,6 +575,9 @@ class Chat extends React.Component {
         this.state.roomList[roomListUpdate.room] = roomListUpdate.update;
         this.setState({roomList: this.state.roomList});
         this.playNewMessageSound(message);
+        if (notifyUser){
+          this.sendNotification(this.state.roomList[message.room].penpal.name + " vous a envoyé un nouveau message.");
+        }
       }.bind(this));
     }
   }
