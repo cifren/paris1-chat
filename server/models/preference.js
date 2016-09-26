@@ -19,6 +19,11 @@ var PreferenceSchema = mongoose.Schema({
         type: Boolean,
         default: true,
         required: false
+    },
+    notification: {
+        type: String,
+        default: "denied",
+        required: false
     }
 });
 

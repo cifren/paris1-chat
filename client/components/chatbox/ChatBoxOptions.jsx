@@ -2,7 +2,7 @@ import React from 'react';
 import PanelBody from '../core/PanelBody.jsx';
 import DropDownStatus from './options/DropDownStatus.jsx';
 import DropDownSound from './options/DropDownSound.jsx';
-import NotificationBtn from './options/NotificationBtn.jsx';
+import DropDownNotification from './options/DropDownNotification.jsx';
 
 class ChatBoxOptions extends React.Component {
   constructor(props){
@@ -19,7 +19,7 @@ class ChatBoxOptions extends React.Component {
           Mon statut : <DropDownStatus status={this.props.user.status}/>
         </h5>
         <h5>
-          Notifications HTML5 : <NotificationBtn notificationsHTML5={this.props.preferences.notificationsHTML5}/>
+          Notifications : <DropDownNotification notification={this.props.preferences.notification}/>
         </h5>
         <h5>
           Son : <DropDownSound sound={this.props.preferences.sound}/>

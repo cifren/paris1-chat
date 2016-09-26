@@ -8,7 +8,7 @@ class DropDownSound extends React.Component {
   }
   handleClick(e) {
     let selectedOption = e.target.className;
-    window.dispatchEvent(new CustomEvent('manage_sound', {detail: selectedOption}));
+    window.dispatchEvent(new CustomEvent('change_sound', {detail: selectedOption}));
   }
   render() {
     let activePrefIcone = (this.props.sound) ? <span className="glyphicon glyphicon-volume-up"></span> : <span className="glyphicon glyphicon-volume-off"></span>;

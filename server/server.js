@@ -61,6 +61,9 @@ function createStructures(data){
 }
 
 function getDirection(service, callback){
+  if (service === "guest"){
+    return callback("guest");
+  }
   ldap.search({filter: "(supannCodeEntite=" + service + ")"}, function(err, data){
     if (err) return console.log(err);
     if (!data[0].up1Flags || data[0].up1Flags.indexOf("included") === -1){
@@ -151,7 +154,7 @@ function sendRoomList(socket, user){
 function sendPreferences(socket, user){
   Preference.findOne({user: user.uid}, function(err, pref){
     if (err) return console.log(err);
-    io.to(users[socket.user].uid).emit('chat', JSON.stringify({'action': 'preferences', 'data': {sound: pref.sound, lang: pref.lang}}));
+    io.to(users[socket.user].uid).emit('chat', JSON.stringify({'action': 'preferences', 'data': {sound: pref.sound, lang: pref.lang, notification: pref.notification}}));
   });
 }
 
@@ -190,8 +193,8 @@ io.on('connection', function(socket){
 
     var recv = {};
     // Shibboleth auth using handshake's http headers
-    recv.user = socket.handshake.headers.eppn;
-    recv.name = socket.handshake.headers.displayname;
+    recv.user = socket.handshake.headers.remote_user;
+    recv.name = decodeURIComponent(escape(socket.handshake.headers.displayname));
     recv.service = socket.handshake.headers.supannentiteaffectationprincipale;
 
     if (!recv.user || !recv.name) {
@@ -248,7 +251,7 @@ io.on('connection', function(socket){
       User.update({_id: recv.uid}, {$set: {status: recv.status}}, function(err, updated_user){
         if (err) return console.log(err);
         users[socket.user].status = recv.status;
-        socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_change_status', 'user': users[socket.user]}));
+        io.to(users[socket.user].uid).emit('chat', JSON.stringify( {'action': 'user_change_status', 'user': users[socket.user]}));
         if (typeof fn !== "undefined"){
           fn();
         }
@@ -399,15 +402,16 @@ io.on('connection', function(socket){
     }
   });
 
-  socket.on('save_pref', function(recv, fn){
+  socket.on('save_pref', function(recv){
     if (users[socket.user]){
       Preference.findOne({user: socket.user}, function(err, pref){
           if (err) return console.log(err);
           pref.sound = recv.sound;
           pref.lang = recv.lang;
+          pref.notification = recv.notification;
           pref.save(function(err, updatedPref){
             if (err) return console.log(err);
-            fn();
+            io.to(users[socket.user].uid).emit('chat', JSON.stringify({'action': 'preferences', 'data': {sound: updatedPref.sound, lang: updatedPref.lang, notification: updatedPref.notification}}));
           });
       });
     }
@@ -478,28 +482,35 @@ io.on('connection', function(socket){
   });
 
   socket.on('update_roomlist', function(recv, fn){
-      Room.findById(recv.room, function(err, room){
+    Room.findById(recv.room, function(err, room){
+      if (err) return console.log(err);
+      var penpalUid;
+      if (String(recv.owner) === String(socket.user)){
+        penpalUid = (String(recv.owner) === String(room.users[0])) ? room.users[1] : room.users[0];
+      }
+      else {
+        penpalUid = recv.owner;
+      }
+      User.findById(penpalUid, function(err, user){
         if (err) return console.log(err);
-        var penpalUid;
-        if (String(recv.owner) === String(socket.user)){
-          penpalUid = (String(recv.owner) === String(room.users[0])) ? room.users[1] : room.users[0];
-        }
-        else {
-          penpalUid = recv.owner;
-        }
-        User.findById(penpalUid, function(err, user){
-          if (err) return console.log(err);
-          var penpal = {
-            'uid': user._id,
-            'user': user.user,
-            'name': user.name,
-            'status': users[user._id] && users[user._id].status || 'offline',
-            'service': user.service,
-            'direction': user.direction
-          };
-          fn(JSON.stringify({room: recv.room, update: {lastMessage: recv, penpal: penpal}}));
-        });
+        var penpal = {
+          'uid': user._id,
+          'user': user.user,
+          'name': user.name,
+          'status': users[user._id] && users[user._id].status || 'offline',
+          'service': user.service,
+          'direction': user.direction
+        };
+        fn(JSON.stringify({room: recv.room, update: {lastMessage: recv, penpal: penpal}}));
       });
+    });
+  });
+
+  socket.on('display_notification', function(fn){
+    // Display notification on one client only
+    if (Object.keys(io.sockets.adapter.rooms[socket.user].sockets)[0] === socket.id){
+      fn();
+    }
   });
 });
 

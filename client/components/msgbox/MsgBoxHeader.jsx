@@ -13,10 +13,14 @@ class MsgBoxHeader extends React.Component {
                         "padding": "10px 0px 10px 5px"};
     let styleButtonBack = {"float": "left"};
     let styleButtonFav = {"float": "right"};
+    let styleTitle = {"overflow": "hidden",
+                      "whiteSpace": "nowrap",
+                      "textOverflow": "ellipsis",
+                      "maxWidth": "163px"};
     return (
       <ul className="nav nav-tabs">
         <li style={styleButtonBack} role="presentation"><ButtonBack room={this.props.room}/></li>
-        <li role="presentation">
+        <li style={styleTitle} role="presentation">
           <div style={styleDivUser}>
             <UserStatus status={this.props.room.penpal.status}/>
             <div className="msgbox-title">

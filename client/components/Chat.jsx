@@ -19,7 +19,7 @@ class Chat extends React.Component {
       activeRoom: {},
       user: {status: 'offline'},
       chatBox: {minimized: true, currentTab: 'home'},
-      preferences: {sound: true, lang: 'fr', notificationsHTML5: false}
+      preferences: {sound: true, lang: 'fr', notification: "denied"}
     };
     this.closeChat = this.closeChat.bind(this);
     this.setStatus = this.setStatus.bind(this);
@@ -45,10 +45,9 @@ class Chat extends React.Component {
     this.uploadProgress = this.uploadProgress.bind(this);
     this.sendMoreData = this.sendMoreData.bind(this);
     this.favClick = this.favClick.bind(this);
-    this.sendNotification = this.sendNotification.bind(this);
-    this.setRemotePreferences = this.setRemotePreferences.bind(this);
-    this.checkNotificationsHTML5 = this.checkNotificationsHTML5.bind(this);
-    this.toggleNotificationsHTML5 = this.toggleNotificationsHTML5.bind(this);
+    this.displayNotification = this.displayNotification.bind(this);
+    this.checkNotification = this.checkNotification.bind(this);
+    this.toggleNotification = this.toggleNotification.bind(this);
 
     this.connectToServer();
 
@@ -86,7 +85,8 @@ class Chat extends React.Component {
     // DOM events
     window.addEventListener('close_chat', this.closeChat);
     window.addEventListener('change_status', this.setStatus);
-    window.addEventListener('manage_sound', this.manageSound);
+    window.addEventListener('change_sound', this.manageSound);
+    window.addEventListener('change_notification', this.toggleNotification);
     window.addEventListener('user_button', this.loadMsgBox);
     window.addEventListener('fav_button', this.manageFavList);
     window.addEventListener('search_keypress', this.updateSearchList);
@@ -96,12 +96,11 @@ class Chat extends React.Component {
     window.addEventListener('user_typing', this.userTyping);
     window.addEventListener('upload_file', this.uploadFile);
     window.addEventListener('fav_click', this.favClick);
-    window.addEventListener('update_notificationsHTML5', this.toggleNotificationsHTML5);
 
     //TODO : Ne pas utiliser Jquery
     $(document).on('shown.bs.tab', 'a[data-toggle="tab"]', this.clickOnTab);
 
-    this.checkNotificationsHTML5();
+    this.checkNotification();
   }
 
   socketEventListener(){
@@ -161,10 +160,13 @@ class Chat extends React.Component {
           this.penpalTyping(recv.data);
           break;
         case 'preferences':
-          this.setRemotePreferences(recv.data);
+          this.setPreferences(recv.data);
           break;
         case 'send_more_data':
           this.sendMoreData(recv.data);
+          break;
+        case 'display_notification':
+          this.displayNotification(recv.data);
           break;
         default:
           console.log("Unknown action : " + recv.action);
@@ -172,42 +174,34 @@ class Chat extends React.Component {
     }.bind(this));
   }
 
-  checkNotificationsHTML5(){
+  setPreferences(pref){
+    this.state.preferences.sound = pref.sound;
+    this.state.preferences.lang = pref.lang;
+    this.state.preferences.notification = (Notification.permission !== "granted") ? "denied" : pref.notification;
+    this.setState({preferences: this.state.preferences});
+  }
+
+  checkNotification(){
     if (window.Notification){
-      let localPermission = localStorage.getItem("notificationsHTML5");
-      if (localPermission !== "denied" || Notification.permission === "default"){
-        Notification.requestPermission(function(permission){
-          if (permission === "granted"){
-            this.state.preferences.notificationsHTML5 = true;
-            this.setState({preferences: this.state.preferences});
-          }
-          localStorage.setItem("notificationsHTML5", permission);
-        }.bind(this));
-      }
+      Notification.requestPermission(function(permission){
+        if (permission === "granted"){
+          this.state.preferences.notification = "all";
+          this.setState({preferences: this.state.preferences});
+        }
+      }.bind(this));
     }
   }
 
-  toggleNotificationsHTML5(){
+  toggleNotification(event){
     if (window.Notification){
-      if (this.state.preferences.notificationsHTML5){
-        this.state.preferences.notificationsHTML5 = false;
-        localStorage.setItem("notificationsHTML5", "denied");
-        this.setState({preferences: this.state.preferences});
+      if (Notification.permission === "granted"){
+        this.state.preferences.notification = event.detail;
+        this.socket.emit('save_pref', this.state.preferences);
       }
       else {
-        Notification.requestPermission(function(permission){
-          this.state.preferences.notificationsHTML5 = (permission === "granted") ? true : false;
-          localStorage.setItem("notificationsHTML5", permission);
-          this.setState({preferences: this.state.preferences});
-        }.bind(this));
+        this.checkNotification();
       }
     }
-  }
-
-  setRemotePreferences(data){
-    this.state.preferences.sound = data.sound;
-    this.state.preferences.lang = data.lang;
-    this.setState({preferences: this.state.preferences});
   }
 
   userTyping(event){
@@ -256,9 +250,7 @@ class Chat extends React.Component {
     let newSoundPref = (event.detail === "sound-enabled") ? true : false;
     if (this.state.preferences.sound !== newSoundPref){
       this.state.preferences.sound = newSoundPref;
-      this.socket.emit('save_pref', this.state.preferences, function(){
-        this.setState({preferences: this.state.preferences});
-      }.bind(this));
+      this.socket.emit('save_pref', this.state.preferences);
     }
   }
 
@@ -281,7 +273,9 @@ class Chat extends React.Component {
       this.state.directionList[user.uid] = user;
       this.setState({directionList: this.state.directionList});
       if (user.status === "online" || user.status === "busy"){
-        this.sendNotification(user.name + " est maintenant en ligne");
+        this.socket.emit('display_notification', function(){
+          this.displayNotification(user.name + " est maintenant en ligne", "connection")
+        }.bind(this));
         notifyUser = false;
       }
     }
@@ -289,7 +283,9 @@ class Chat extends React.Component {
       this.state.favList[user.uid] = user;
       this.setState({favList: this.state.favList});
       if (notifyUser && user.status === "online" || user.status === "busy"){
-        this.sendNotification(user.name + " est maintenant en ligne");
+        this.socket.emit('display_notification', function(){
+          this.displayNotification(user.name + " est maintenant en ligne", "connection")
+        }.bind(this));
       }
     }
     this.updateActiveRoomStatus(user, user.status);
@@ -534,9 +530,9 @@ class Chat extends React.Component {
     }
   }
 
-  sendNotification(body){
-    if (this.state.preferences.notificationsHTML5){
-      var notification = new Notification("Tchat Paris 1", {
+  displayNotification(body, type){
+    if (this.state.preferences.notification === "all" || this.state.preferences.notification === type){
+      let notification = new Notification("Tchat Paris 1", {
         body: body,
         icon: "./../tchat.png"
       });
@@ -566,7 +562,9 @@ class Chat extends React.Component {
       this.setState({roomList: this.state.roomList});
       this.playNewMessageSound(message);
       if (notifyUser){
-        this.sendNotification(this.state.roomList[message.room].penpal.name + " vous a envoyé un nouveau message.");
+        this.socket.emit("display_notification", function(){
+          this.displayNotification(this.state.roomList[message.room].penpal.name + " vous a envoyé un nouveau message.", "message");
+        }.bind(this));
       }
     }
     else {
@@ -576,7 +574,9 @@ class Chat extends React.Component {
         this.setState({roomList: this.state.roomList});
         this.playNewMessageSound(message);
         if (notifyUser){
-          this.sendNotification(this.state.roomList[message.room].penpal.name + " vous a envoyé un nouveau message.");
+          this.socket.emit("display_notification", function(){
+            this.displayNotification(this.state.roomList[message.room].penpal.name + " vous a envoyé un nouveau message.", "message");
+          }.bind(this));
         }
       }.bind(this));
     }
