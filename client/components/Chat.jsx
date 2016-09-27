@@ -22,7 +22,7 @@ class Chat extends React.Component {
       preferences: {sound: true, lang: 'fr', notification: "denied"}
     };
     this.closeChat = this.closeChat.bind(this);
-    this.setStatus = this.setStatus.bind(this);
+    this.sendStatus = this.sendStatus.bind(this);
     this.socketEventListener = this.socketEventListener.bind(this);
     this.disconnectUser = this.disconnectUser.bind(this);
     this.connectUser = this.connectUser.bind(this);
@@ -84,7 +84,7 @@ class Chat extends React.Component {
     this.setChatBoxSize();
     // DOM events
     window.addEventListener('close_chat', this.closeChat);
-    window.addEventListener('change_status', this.setStatus);
+    window.addEventListener('change_status', this.sendStatus);
     window.addEventListener('change_sound', this.manageSound);
     window.addEventListener('change_notification', this.toggleNotification);
     window.addEventListener('user_button', this.loadMsgBox);
@@ -165,9 +165,6 @@ class Chat extends React.Component {
         case 'send_more_data':
           this.sendMoreData(recv.data);
           break;
-        case 'display_notification':
-          this.displayNotification(recv.data);
-          break;
         default:
           console.log("Unknown action : " + recv.action);
       }
@@ -236,12 +233,12 @@ class Chat extends React.Component {
     }
   }
 
-  setStatus(event){
+  sendStatus(event){
     let newStatus = event.detail;
     if (this.state.user.status != newStatus){
       this.state.user.status = newStatus;
-      this.socket.emit('user_status', this.state.user, function(){
-        this.setState({user: this.state.user})
+      this.socket.emit('change_status', this.state.user, function(){
+        this.setState({user: this.state.user});
       }.bind(this));
     }
   }
@@ -255,16 +252,21 @@ class Chat extends React.Component {
   }
 
   changeStatusUser(user){
-    if (this.state.directionList[user.uid]){
-      this.state.directionList[user.uid] = user;
-      this.setState({directionList: this.state.directionList});
+    if (this.state.user.uid === user.uid){
+      this.setState({user: user});
     }
-    if (this.state.favList[user.uid]){
-      this.state.favList[user.uid] = user;
-      this.setState({favList: this.state.favList});
+    else {
+      if (this.state.directionList[user.uid]){
+        this.state.directionList[user.uid] = user;
+        this.setState({directionList: this.state.directionList});
+      }
+      if (this.state.favList[user.uid]){
+        this.state.favList[user.uid] = user;
+        this.setState({favList: this.state.favList});
+      }
+      this.updateActiveRoomStatus(user, user.status);
+      this.updateRoomListStatus(user, user.status);
     }
-    this.updateActiveRoomStatus(user, user.status);
-    this.updateRoomListStatus(user, user.status);
   }
 
   connectUser(user){
@@ -273,7 +275,7 @@ class Chat extends React.Component {
       this.state.directionList[user.uid] = user;
       this.setState({directionList: this.state.directionList});
       if (user.status === "online" || user.status === "busy"){
-        this.socket.emit('display_notification', function(){
+        this.socket.emit('display_notification', {uid: user.uid}, function(){
           this.displayNotification(user.name + " est maintenant en ligne", "connection")
         }.bind(this));
         notifyUser = false;
@@ -283,7 +285,7 @@ class Chat extends React.Component {
       this.state.favList[user.uid] = user;
       this.setState({favList: this.state.favList});
       if (notifyUser && user.status === "online" || user.status === "busy"){
-        this.socket.emit('display_notification', function(){
+        this.socket.emit('display_notification', {uid: user.uid}, function(){
           this.displayNotification(user.name + " est maintenant en ligne", "connection")
         }.bind(this));
       }
@@ -562,7 +564,7 @@ class Chat extends React.Component {
       this.setState({roomList: this.state.roomList});
       this.playNewMessageSound(message);
       if (notifyUser){
-        this.socket.emit("display_notification", function(){
+        this.socket.emit("display_notification", null, function(){
           this.displayNotification(this.state.roomList[message.room].penpal.name + " vous a envoyé un nouveau message.", "message");
         }.bind(this));
       }
@@ -574,7 +576,7 @@ class Chat extends React.Component {
         this.setState({roomList: this.state.roomList});
         this.playNewMessageSound(message);
         if (notifyUser){
-          this.socket.emit("display_notification", function(){
+          this.socket.emit("display_notification", null, function(){
             this.displayNotification(this.state.roomList[message.room].penpal.name + " vous a envoyé un nouveau message.", "message");
           }.bind(this));
         }

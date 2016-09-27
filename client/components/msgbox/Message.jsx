@@ -60,7 +60,6 @@ class Message extends React.Component {
                       <Avatar penpal={this.props.avatar}/>
                     </div>
                   </div>;
-
     }
     let styleLastMessage = {"borderBottom": "0px"};
     let styleViewed = {"float": "right"};

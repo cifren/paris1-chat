@@ -15,7 +15,7 @@ qs       = require('querystring'),
 LDAP     = require('ldap-client'),
 async    = require('async');
 
-var users = {}, files = {};
+var users = {}, files = {}, navigating_users= {};
 
 // Load schema
 var User   = require('./models/user'),
@@ -246,15 +246,13 @@ io.on('connection', function(socket){
   });
 
   // Event received when user want change his status
-  socket.on('user_status', function (recv, fn) {
+  socket.on('change_status', function (recv, fn) {
     if (users[socket.user]){
       User.update({_id: recv.uid}, {$set: {status: recv.status}}, function(err, updated_user){
         if (err) return console.log(err);
         users[socket.user].status = recv.status;
-        io.to(users[socket.user].uid).emit('chat', JSON.stringify( {'action': 'user_change_status', 'user': users[socket.user]}));
-        if (typeof fn !== "undefined"){
-          fn();
-        }
+        socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_change_status', 'user': users[socket.user]}));
+        fn();
       });
     }
   });
@@ -312,6 +310,10 @@ io.on('connection', function(socket){
 
   // Event received when user has disconnected
   socket.on('disconnect', function () {
+    navigating_users[socket.user] = users[socket.user];
+    setTimeout(function(){
+      delete navigating_users[socket.user];
+    }, 5000);
     socket.leave(socket.user);
     var clients = io.sockets.adapter.rooms[socket.user];
     if (typeof clients === "undefined"){
@@ -506,10 +508,18 @@ io.on('connection', function(socket){
     });
   });
 
-  socket.on('display_notification', function(fn){
-    // Display notification on one client only
-    if (Object.keys(io.sockets.adapter.rooms[socket.user].sockets)[0] === socket.id){
-      fn();
+  socket.on('display_notification', function(recv, fn){
+    var user_clients = Object.keys(io.sockets.adapter.rooms[socket.user].sockets);
+    if (user_clients[0] === socket.id){
+      if (recv && recv.uid){
+        var penpal_clients = io.sockets.adapter.rooms[recv.uid] && Object.keys(io.sockets.adapter.rooms[recv.uid].sockets);
+        if(penpal_clients && penpal_clients.length === 1 && !navigating_users[recv.uid]){
+          fn();
+        }
+      }
+      else {
+        fn();
+      }
     }
   });
 });
