@@ -38,9 +38,9 @@ class MsgBoxBody extends React.Component {
       msgTab = [];
 
       if (isLastMessage){
-        return <Message lastMessage={true} penpalTyping={this.props.room.penpalTyping} penpalName={this.props.room.penpal.name} owned={this.isOwned(message)} key={message._id} avatar={this.getUid(message)} message={message} tabText={tabText}/>;
+        return <Message lastMessage={true} penpalTyping={this.props.room.penpalTyping} penpalName={this.props.room.penpal.name} owned={this.isOwned(message)} key={message._id} avatar={this.getUid(message)} modifyTimestamp={this.props.room.penpal.modifyTimestamp} message={message} tabText={tabText}/>;
       }
-      return <Message owned={this.isOwned(message)} key={message._id} avatar={this.getUid(message)} message={message} tabText={tabText}/>;
+      return <Message owned={this.isOwned(message)} key={message._id} avatar={this.getUid(message)} modifyTimestamp={this.props.room.penpal.modifyTimestamp} message={message} tabText={tabText}/>;
     });
     return (
       <PanelBody>

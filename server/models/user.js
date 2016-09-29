@@ -36,7 +36,10 @@ var UserSchema = mongoose.Schema({
   favorites: [{
     type: ObjectId,
     ref: 'User'
-  }]
+  }],
+  modifyTimestamp: {
+    type: String
+  }
 });
 
 module.exports = mongoose.model('User', UserSchema);

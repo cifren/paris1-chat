@@ -25,6 +25,7 @@ Room       = require('./models/room');
 
 // LDAP Search for structures
 var structures = {};
+
 var ldap = new LDAP({
     uri: config.ldap.uri,
     base: config.ldap.base,
@@ -62,16 +63,29 @@ function createStructures(data){
 
 function getDirection(service, callback){
   if (service === "guest"){
-    return callback("guest");
+    return callback(null, "guest");
   }
   ldap.search({filter: "(supannCodeEntite=" + service + ")"}, function(err, data){
     if (err) return console.log(err);
     if (!data[0].up1Flags || data[0].up1Flags.indexOf("included") === -1){
-      callback(service);
+      return callback(null, service);
     }
     else {
       return getDirection(data[0].supannCodeEntiteParent[0], callback);
     }
+  });
+}
+
+function getModifyTimestamp(eppn, callback){
+  if (eppn.indexOf("univ-paris1") === -1){
+    return callback(null, null);
+  }
+  ldap.search({base: "ou=people,dc=univ-paris1,dc=fr",
+    filter: "(eduPersonPrincipalName=" + eppn + ")",
+    attrs: "modifyTimestamp"
+  }, function(err, data){
+    if (err) return console.log(err);
+    return callback(null, data[0] && data[0].modifyTimestamp[0]);
   });
 }
 
@@ -86,7 +100,8 @@ function sendDirectionList(socket, user){
         'name': users[usr].name,
         'status': users[usr].status,
         'service': users[usr].service,
-        'direction': users[usr].direction
+        'direction': users[usr].direction,
+        'modifyTimestamp': users[usr].modifyTimestamp
       };
     }
   }
@@ -105,7 +120,8 @@ function sendFavList(socket, user){
         'name': fav_list[i].name,
         'status': users[fav_list[i]._id] && users[fav_list[i]._id].status || 'offline',
         'service': fav_list[i].service,
-        'direction': fav_list[i].direction
+        'direction': fav_list[i].direction,
+        'modifyTimestamp': fav_list[i].modifyTimestamp
       };
     }
     io.to(users[socket.user].uid).emit('chat', JSON.stringify({'action': 'fav_list', 'data': favList}));
@@ -134,7 +150,9 @@ function sendRoomList(socket, user){
           'name': result.findPenpal.name,
           'status': users[result.findPenpal._id] && users[result.findPenpal._id].status || 'offline',
           'service': result.findPenpal.service,
-          'direction': result.findPenpal.direction
+          'direction': result.findPenpal.direction,
+          'modifyTimestamp': result.findPenpal.modifyTimestamp
+
         };
         roomList[room._id].lastMessage = result.findLastMessage;
       }
@@ -167,7 +185,8 @@ function addUserToChat(socket, user, fn){
     'status': user.status,
     'service': user.service,
     'direction': user.direction,
-    'favorites': user.favorites
+    'favorites': user.favorites,
+    'modifyTimestamp': user.modifyTimestamp
   };
 
   if (typeof fn !== 'undefined') {
@@ -209,15 +228,17 @@ io.on('connection', function(socket){
     User.findOne({user: recv.user}, function(err, user){
       if (err) return console.log(err);
 
-      // Get user's direction with LDAP search
-      getDirection(recv.service, function(direction){
-        // Create a new user
-        if (!user) {
+      async.parallel({
+        direction: function(callback){return getDirection(recv.service, callback)},
+        modifyTimestamp: function(callback){return  getModifyTimestamp(recv.user, callback)}
+        }, function(err, results){
+          if (!user) {
           var newUser = new User({
               user: recv.user,
               name: recv.name,
               service: [recv.service, structures[recv.service]],
-              direction: [direction, structures[direction]]
+              direction: [results.direction, structures[results.direction]],
+              modifyTimestamp: results.modifyTimestamp
           });
           newUser.save(function(err, newUser) {
             if (err) return console.log(err);
@@ -230,11 +251,15 @@ io.on('connection', function(socket){
         }
         // Already registered user
         else {
-          if (recv.name != user.name)
+          if (recv.name !== user.name){
             user.name = recv.name;
-          if (recv.service != user.service){
+          }
+          if (recv.service !== user.service){
               user.service = [recv.service, structures[recv.service]];
-              user.direction = [direction, structures[direction]];
+              user.direction = [results.direction, structures[results.direction]];
+          }
+          if (results.modifyTimestamp !== user.modifyTimestamp){
+            user.modifyTimestamp = results.modifyTimestamp;
           }
           user.save(function(err, user){
             if(err) return console.log(err);
@@ -395,7 +420,8 @@ io.on('connection', function(socket){
             'name': results[usr].name,
             'status': users[results[usr]._id] && users[results[usr]._id].status || "offline",
             'service': results[usr].service,
-            'direction': results[usr].direction
+            'direction': results[usr].direction,
+            'modifyTimestamp': results[usr].modifyTimestamp
           }
         }
         if (typeof fn !== 'undefined')
@@ -501,7 +527,8 @@ io.on('connection', function(socket){
           'name': user.name,
           'status': users[user._id] && users[user._id].status || 'offline',
           'service': user.service,
-          'direction': user.direction
+          'direction': user.direction,
+          'modifyTimestamp': user.modifyTimestamp
         };
         fn(JSON.stringify({room: recv.room, update: {lastMessage: recv, penpal: penpal}}));
       });

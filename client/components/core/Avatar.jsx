@@ -14,6 +14,9 @@ class Avatar extends React.Component {
     else {
       avatarUrl = Config.avatar_base_url + "&uid=" + this.props.uid;
     }
+    if (this.props.modifyTimestamp){
+      avatarUrl += "&v=" + this.props.modifyTimestamp;
+    }
     let photoStyle = {"backgroundImage": "url(" + avatarUrl + ")"};
     return (
       <div style={photoStyle} className="avatar"></div>

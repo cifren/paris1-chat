@@ -60,7 +60,7 @@ class UserButton extends React.Component {
       <a onContextMenu={this.handleFavClick} onClick={this.handleClick} href="#">
         <div className="hover-container">
           <div className="button-container">
-            <Avatar uid={userUid}/>
+            <Avatar uid={userUid} modifyTimestamp={this.props.user.modifyTimestamp}/>
             <div className="user-container">
               <div className="user-name">
                 {this.props.user.name}

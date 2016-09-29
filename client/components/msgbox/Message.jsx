@@ -44,7 +44,7 @@ class Message extends React.Component {
     if (!this.props.owned){
       message =   <div>
                     <div className="avatar-container col-md-2 col-xs-2">
-                      <Avatar uid={this.props.avatar}/>
+                      <Avatar uid={this.props.avatar} modifyTimestamp={this.props.modifyTimestamp}/>
                     </div>
                     <div className="col-md-10 col-xs-10">
                       {message_content}
@@ -57,7 +57,7 @@ class Message extends React.Component {
                       {message_content}
                     </div>
                     <div className="avatar-container col-md-2 col-xs-2">
-                      <Avatar penpal={this.props.avatar}/>
+                      <Avatar penpal={this.props.avatar} modifyTimestamp={this.props.modifyTimestamp}/>
                     </div>
                   </div>;
     }

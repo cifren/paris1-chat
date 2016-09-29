@@ -546,6 +546,11 @@ class Chat extends React.Component {
 
   addMessageToRoom(message){
     let notifyUser = true;
+
+    if (window.hasFocus || message.owner === this.state.user.uid) {
+      notifyUser = false;
+    }
+
     if (this.state.activeRoom.room && this.state.activeRoom.room === message.room){
       if (message.owner !== this.state.user.uid){
         this.socket.emit('message_viewed', message);
@@ -554,9 +559,6 @@ class Chat extends React.Component {
       this.state.activeRoom.messages.push(message);
       this.setState({activeRoom: this.state.activeRoom});
       this.scrollDivToBottom();
-      if (window.hasFocus || message.owner === this.state.user.uid) {
-        notifyUser = false;
-      }
     }
 
     if (this.state.roomList[message.room]){
