@@ -313,7 +313,7 @@ io.on('connection', function(socket){
         socket.emit('custom_error', { message: 'Error, the message wont be save' });
       }
       else {
-        if (!recv.isLink && recv.text.match(/https?:\/\/.*/gi)){
+        if (!recv.isLink && recv.text.match(/https?:\/\/.*/g)){
           recv.text = "<a target='_blank' href='" + recv.text + "'>" + recv.text + "</a>";
           recv.isLink = true;
         }
@@ -409,7 +409,8 @@ io.on('connection', function(socket){
 
   socket.on('search', function(recv, fn) {
     if (users[socket.user]){
-      User.find({'name': {'$regex': new RegExp(recv, "i")}}, function(err, results){
+      var searchPattern = recv.replace(/\W/g, ".");
+      User.find({'name': {'$regex': new RegExp(searchPattern, "i")}}, function(err, results){
         if (err) return console.log(err);
         var users_found = {};
         for (var usr in results){
@@ -540,8 +541,21 @@ io.on('connection', function(socket){
     if (user_clients[0] === socket.id){
       if (recv && recv.uid){
         var penpal_clients = io.sockets.adapter.rooms[recv.uid] && Object.keys(io.sockets.adapter.rooms[recv.uid].sockets);
-        if(penpal_clients && penpal_clients.length === 1 && !navigating_users[recv.uid]){
-          fn();
+        switch(recv.action){
+          case "connection":
+            if(penpal_clients && penpal_clients.length === 1 && !navigating_users[recv.uid]){
+              fn();
+            }
+            break;
+          case "disconnection":
+            setTimeout(function(){
+              if (!users[recv.uid] && !navigating_users[recv.uid]){
+                fn();
+              }
+            }, 5000);
+            break;
+          default:
+            fn();
         }
       }
       else {

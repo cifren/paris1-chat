@@ -35,8 +35,8 @@ class DropDownNotification extends React.Component {
         case "all":
           label = "Toutes";
         break;
-        case "connection":
-          label = "Connexions";
+        case "status":
+          label = "Statuts";
         break;
         case "message":
           label = "Messages";
@@ -51,7 +51,7 @@ class DropDownNotification extends React.Component {
         <ul className="dropdown-menu" aria-labelledby="dropDownNotification">
           <li><a href="#" onClick={this.handleClick} className="all">Toutes</a></li>
           <li><a href="#" onClick={this.handleClick} className="message">Messages</a></li>
-          <li><a href="#" onClick={this.handleClick} className="connection">Connexions</a></li>
+          <li><a href="#" onClick={this.handleClick} className="status">Statuts</a></li>
           <li><a href="#" onClick={this.handleClick} className="denied">Désactivées</a></li>
         </ul>
       </div>;

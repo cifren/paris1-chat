@@ -310,17 +310,21 @@ img {
   height: 36px;
 }
 
-#search{
+#chat-search{
   border-radius: 0px;
   border-top: 1px solid #ddd;
   border: 0px;
   width: 100%;
 }
 
-#search:focus{
+#chat-search:focus{
   border-color: #cccccc;
   -webkit-box-shadow: none;
   box-shadow: none;
+}
+
+.form-control-feedback{
+  pointer-events: auto;
 }
 
 .panel-footer{

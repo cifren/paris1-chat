@@ -256,13 +256,34 @@ class Chat extends React.Component {
       this.setState({user: user});
     }
     else {
+      let statusLabel, notifyUser = true;
+      switch(user.status){
+        case "online":
+          statusLabel = "en ligne";
+          break;
+        case "busy":
+          statusLabel = "indisponible";
+          break;
+        default:
+          statusLabel = "hors ligne";
+          break;
+      }
       if (this.state.directionList[user.uid]){
         this.state.directionList[user.uid] = user;
         this.setState({directionList: this.state.directionList});
+        this.socket.emit('display_notification', {uid: user.uid}, function(){
+          this.displayNotification(user.name + " est maintenant " + statusLabel, "status")
+        }.bind(this));
+        notifyUser = false;
       }
       if (this.state.favList[user.uid]){
         this.state.favList[user.uid] = user;
         this.setState({favList: this.state.favList});
+        if (notifyUser){
+          this.socket.emit('display_notification', {uid: user.uid}, function(){
+            this.displayNotification(user.name + " est maintenant " + statusLabel, "status")
+          }.bind(this));
+        }
       }
       this.updateActiveRoomStatus(user, user.status);
       this.updateRoomListStatus(user, user.status);
@@ -275,8 +296,8 @@ class Chat extends React.Component {
       this.state.directionList[user.uid] = user;
       this.setState({directionList: this.state.directionList});
       if (user.status === "online" || user.status === "busy"){
-        this.socket.emit('display_notification', {uid: user.uid}, function(){
-          this.displayNotification(user.name + " est maintenant en ligne", "connection")
+        this.socket.emit('display_notification', {uid: user.uid, action: "connection"}, function(){
+          this.displayNotification(user.name + " est maintenant en ligne", "status")
         }.bind(this));
         notifyUser = false;
       }
@@ -285,8 +306,8 @@ class Chat extends React.Component {
       this.state.favList[user.uid] = user;
       this.setState({favList: this.state.favList});
       if (notifyUser && user.status === "online" || user.status === "busy"){
-        this.socket.emit('display_notification', {uid: user.uid}, function(){
-          this.displayNotification(user.name + " est maintenant en ligne", "connection")
+        this.socket.emit('display_notification', {uid: user.uid, action: "connection"}, function(){
+          this.displayNotification(user.name + " est maintenant en ligne", "status")
         }.bind(this));
       }
     }
@@ -315,13 +336,14 @@ class Chat extends React.Component {
     this.state.chatBox.currentTab = currentTab;
     this.setState({chatBox: this.state.chatBox});
     if (this.state.searchState){
-      document.getElementById('search').value = "";
+      document.getElementById('chat-search').value = "";
       this.setState({searchList: {}});
       this.setState({searchState: false});
     }
   }
 
   disconnectUser(user){
+    let notifyUser = true;
     if (this.state.user.uid === user.uid){
       this.socket.disconnect();
     }
@@ -329,10 +351,21 @@ class Chat extends React.Component {
       if (this.state.directionList[user.uid]){
         delete this.state.directionList[user.uid];
         this.setState({directionList: this.state.directionList});
+        if (user.status === "online" || user.status === "busy"){
+          this.socket.emit('display_notification', {uid: user.uid, action: "disconnection"}, function(){
+            this.displayNotification(user.name + " est maintenant hors ligne", "status")
+          }.bind(this));
+          notifyUser = false;
+        }
       }
       if (this.state.favList[user.uid]){
         this.state.favList[user.uid].status = 'offline';
         this.setState({favList: this.state.favList});
+        if (user.status === "online" || user.status === "busy"){
+          this.socket.emit('display_notification', {uid: user.uid, action: "disconnection"}, function(){
+            this.displayNotification(user.name + " est maintenant hors ligne", "status")
+          }.bind(this));
+        }
       }
       this.updateActiveRoomStatus(user);
       this.updateRoomListStatus(user);
@@ -533,6 +566,9 @@ class Chat extends React.Component {
   }
 
   displayNotification(body, type){
+    if (window.hasFocus){
+      return;
+    }
     if (this.state.preferences.notification === "all" || this.state.preferences.notification === type){
       let notification = new Notification("Tchat Paris 1", {
         body: body,
@@ -547,7 +583,7 @@ class Chat extends React.Component {
   addMessageToRoom(message){
     let notifyUser = true;
 
-    if (window.hasFocus || message.owner === this.state.user.uid) {
+    if (message.owner === this.state.user.uid) {
       notifyUser = false;
     }
 
