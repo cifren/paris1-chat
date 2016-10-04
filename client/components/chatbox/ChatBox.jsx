@@ -38,7 +38,7 @@ class ChatBox extends React.Component {
                   <div style={styleHeight} className="tab-content">
                     <ChatBoxHome user={this.props.user} directionList={this.props.directionList} favList={this.props.favList}
                     searchState={this.props.searchState} searchList={this.props.searchList} currentTab={this.state.currentTab}/>
-                    <ChatBoxMessage searchState={this.props.searchState} searchList={this.props.searchList} roomList={this.props.roomList} currentTab={this.state.currentTab}/>
+                    <ChatBoxMessage user={this.props.user} searchState={this.props.searchState} searchList={this.props.searchList} roomList={this.props.roomList} currentTab={this.state.currentTab}/>
                     <ChatBoxOptions user={this.props.user} preferences={this.props.preferences} currentTab={this.state.currentTab}/>
                     <ChaBoxAbout currentTab={this.state.currentTab}/>
                   </div>

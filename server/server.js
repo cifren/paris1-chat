@@ -313,7 +313,7 @@ io.on('connection', function(socket){
         socket.emit('custom_error', { message: 'Error, the message wont be save' });
       }
       else {
-        if (!recv.isLink && recv.text.match(/https?:\/\/.*/g)){
+        if (!recv.isLink && recv.text.match(/^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/)){
           recv.text = "<a target='_blank' href='" + recv.text + "'>" + recv.text + "</a>";
           recv.isLink = true;
         }
