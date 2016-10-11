@@ -31,6 +31,10 @@ class UserButton extends React.Component {
     let msgDate = new Date(this.props.lastMessage.posted);
     let months = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
     if (Date.now() - Date.parse(this.props.lastMessage.posted) < 86400000){
+      var today = new Date();
+      if (today.getDate() !== msgDate.getDate()){
+        return "hier";
+      }
       return msgDate.getHours() + "h" + this.addZeros(msgDate.getMinutes());
     }
     else if (Date.now() - Date.parse(this.props.lastMessage.posted) < 31536000000){

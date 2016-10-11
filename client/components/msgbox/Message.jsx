@@ -14,6 +14,12 @@ class Message extends React.Component {
     let msgDate = new Date(this.props.message.posted);
     let months = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
     if (Date.now() - Date.parse(this.props.message.posted) < 86400000){
+      var today = new Date();
+      console.log(today);
+      console.log(msgDate);
+      if (today.getDate() !== msgDate.getDate()){
+        return "hier";
+      }
       return msgDate.getHours() + "h" + this.addZeros(msgDate.getMinutes());
     }
     else if (Date.now() - Date.parse(this.props.message.posted) < 31536000000){
