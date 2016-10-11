@@ -13,7 +13,7 @@ class ChatBoxMessage extends React.Component {
     }
     else {
       if (this.props.searchState){
-        content = <ChatBoxBodySection title="Recherche" list={this.props.searchList} noUserMessage="La recherche n'a retouné aucun résultat."/>
+        content = <ChatBoxBodySection searchState={true} title="Recherche" list={this.props.searchList} noUserMessage="La recherche n'a retouné aucun résultat."/>
       }
       else {
         content = <ChatBoxBodySection title="Mes messages" list={this.props.roomList} noUserMessage="Vous n'avez aucun message."/>

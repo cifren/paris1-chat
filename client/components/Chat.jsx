@@ -385,7 +385,7 @@ class Chat extends React.Component {
       }
       if (this.state.searchState){
         this.setState({searchState: false});
-        document.getElementById('search').value = "";
+        document.getElementById('chat-search').value = "";
       }
     }.bind(this));
   }

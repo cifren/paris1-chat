@@ -14,7 +14,7 @@ class ChatBoxHome extends React.Component {
     }
     else {
       if (this.props.searchState){
-        searchList = <ChatBoxBodySection title="Recherche" list={this.props.searchList} noUserMessage="La recherche n'a retouné aucun résultat."/>
+        searchList = <ChatBoxBodySection searchState={true} title="Recherche" list={this.props.searchList} noUserMessage="La recherche n'a retouné aucun résultat."/>
       }
       else {
         directionList = <ChatBoxBodySection noDisplayInvisible={true} title={this.props.user.direction[1]} list={this.props.directionList} noUserMessage="Aucun utilisateur n'est connecté."/>

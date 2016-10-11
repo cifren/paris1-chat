@@ -62,9 +62,9 @@ class ChatBoxBodySection extends React.Component {
           return;
         }
         if (this.props.list[key].lastMessage){
-          return <UserButton user={this.props.list[key].penpal} lastMessage={this.props.list[key].lastMessage} key={i}/>;
+          return <UserButton searchState={this.props.searchState} user={this.props.list[key].penpal} lastMessage={this.props.list[key].lastMessage} key={i}/>;
         }
-        return <UserButton user={this.props.list[key]} key={i}/>;
+        return <UserButton searchState={this.props.searchState} user={this.props.list[key]} key={i}/>;
       });
     }
     else {

@@ -46,7 +46,7 @@ class UserButton extends React.Component {
     let month = msgDate.getMonth() + 1;
   }
   render() {
-    let lastMessage;
+    let lastMessage, affectation;
     let userUid = this.props.user.user.split("@")[0];
     if (this.props.lastMessage){
       let lastMessageContent = this.props.lastMessage.text;
@@ -60,6 +60,10 @@ class UserButton extends React.Component {
         lastMessage = <div className="last-message"><em><span className="glyphicon glyphicon-share-alt"></span> {this.readableDate()}</em><i> {lastMessageContent}</i></div>
       }
     }
+    else if (this.props.searchState){
+      let styleEm = {fontSize: "1em"};
+      affectation = <em style={styleEm}>{this.props.user.service[1]}</em>
+    }
     return (
       <a onContextMenu={this.handleFavClick} onClick={this.handleClick} href="#">
         <div className="hover-container">
@@ -67,7 +71,8 @@ class UserButton extends React.Component {
             <Avatar uid={userUid} modifyTimestamp={this.props.user.modifyTimestamp}/>
             <div className="user-container">
               <div className="user-name">
-                {this.props.user.name}
+                <div>{this.props.user.name}</div>
+                {affectation}
               </div>
               <div className="chatbox_user_status">
                 <UserStatus status={this.props.user.status}/>
