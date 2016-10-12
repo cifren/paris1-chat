@@ -398,9 +398,11 @@ class Chat extends React.Component {
 
   updateSearchList(event){
     let search = event.detail.search;
-    let updateSearchState = (search.length === 0) ? false : true;
-    if (this.state.searchState != updateSearchState) this.setState({searchState: updateSearchState});
-    if (this.state.searchState){
+    let searchState = (search.length === 0) ? false : true;
+    if (this.state.searchState !== searchState){
+      this.setState({searchState: searchState});
+    }
+    if (searchState){
       this.socket.emit('search', search, function(data){
         let recv = JSON.parse(data);
         if (recv.successful){

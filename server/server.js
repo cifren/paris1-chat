@@ -313,8 +313,17 @@ io.on('connection', function(socket){
         socket.emit('custom_error', { message: 'Error, the message wont be save' });
       }
       else {
-        if (!recv.isLink && recv.text.match(/^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/)){
-          recv.text = "<a target='_blank' href='" + recv.text + "'>" + recv.text + "</a>";
+        var urlRegex = /https?:\/\/([\w-]{1,63}}\.)?[\w-]{1,63}\.[\w-]{1,63}(:\d{1,5})?\/?([^\ ]*)?/;
+        if (!recv.isLink && recv.text.match(urlRegex)){
+          var matchedUrl = recv.text.match(urlRegex);
+          var preUrl = "", postUrl = "";
+          if (matchedUrl.index !== 0){
+            preUrl = recv.text.substring(0, matchedUrl.index);
+          }
+          if (matchedUrl[0].length !== matchedUrl.input.substring(matchedUrl.index)){
+            postUrl = recv.text.substring(matchedUrl.index + matchedUrl[0].length);
+          }
+          recv.text = preUrl + "<a target='_blank' href='" + matchedUrl[0] + "'>" + matchedUrl[0] + "</a>" + postUrl;
           recv.isLink = true;
         }
         var newMessage = new Message({
@@ -410,7 +419,8 @@ io.on('connection', function(socket){
   socket.on('search', function(recv, fn) {
     if (users[socket.user]){
       var searchPattern = recv.replace(/\W/g, ".");
-      User.find({'name': {'$regex': new RegExp(searchPattern, "i")}}, function(err, results){
+      var strRegex = "(^" + searchPattern + ".*)|(\ " + searchPattern + ".*(\ " + searchPattern + ".*)*$)";
+      User.find({'name': {'$regex': new RegExp(strRegex, "gim")}}, function(err, results){
         if (err) return console.log(err);
         var users_found = {};
         for (var usr in results){

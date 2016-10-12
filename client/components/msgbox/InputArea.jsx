@@ -24,17 +24,17 @@ class InputArea extends React.Component {
         return;
       }
       message = message.substring(0, message.length - 1);
-    }
-    if (message.length > 0){
-      window.dispatchEvent(new CustomEvent('send_message', {
-        detail: {
-          room: this.props.room.room,
-          text: message,
-          receiver: this.props.room.penpal.uid
-        }
-      }));
-      document.getElementById('input-text').value = '';
-      this.updateUserTyping();
+      if (message.length > 0){
+        window.dispatchEvent(new CustomEvent('send_message', {
+          detail: {
+            room: this.props.room.room,
+            text: message,
+            receiver: this.props.room.penpal.uid
+          }
+        }));
+        document.getElementById('input-text').value = '';
+        this.updateUserTyping();
+      }
     }
   }
 

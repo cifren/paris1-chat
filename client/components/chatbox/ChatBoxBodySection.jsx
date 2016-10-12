@@ -46,13 +46,14 @@ class ChatBoxBodySection extends React.Component {
   render() {
     let tabContent = Object.keys(this.props.list);
     let content, title;
+    let sectionId = this.props.title.replace(" ", "-").toLowerCase();
     if (this.props.title === "Mes messages"){
       tabContent.sort(this.sortByDate);
       title = <h5 className="title">{this.props.title}</h5>;
     }
     else {
       tabContent.sort(this.sortAlphabetically);
-      title = <h5 className="title">{this.props.title} ({this.state.onlineUsers})</h5>;
+      title = (this.props.title !== "Recherche") ? <a role="button" data-toggle="collapse" href={"#" + sectionId} aria-expanded="true" aria-controls={sectionId}><h5 className="title">{this.props.title} ({this.state.onlineUsers})</h5></a> : <h5 className="title">{this.props.title} ({this.state.onlineUsers})</h5>;
     }
     let countInvisibleUsers = 0;
     if (tabContent.length > 0){
@@ -75,8 +76,8 @@ class ChatBoxBodySection extends React.Component {
     }
     return (
       <div className="chat_box_section">
-        <div className="chat_box_section_title">
-          {title}
+        {title}
+        <div id={sectionId} className="collapse in">
           {content}
         </div>
       </div>
