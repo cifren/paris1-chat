@@ -215,6 +215,7 @@ img {
   -moz-border-radius: 21px;
   background-size: 32px;
   background-position: 0 -8px;
+  background-repeat: no-repeat;
   display: inline-block;
   float: left;
 }
@@ -417,4 +418,10 @@ img {
   display: block;
   height: 100vh;
   width: 100vw;
+}
+
+.link-disabled {
+  pointer-events: none;
+  cursor: default;
+  opacity: 0.6;
 }

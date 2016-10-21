@@ -227,7 +227,6 @@ class Chat extends React.Component {
 
   updateBadge(room){
     if (this.state.roomList[room]){
-      this.socket.emit('message_viewed', this.state.roomList[room].lastMessage);
       this.state.roomList[room].lastMessage.viewed = true;
       this.setState({roomList: this.state.roomList});
     }

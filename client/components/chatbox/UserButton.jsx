@@ -54,7 +54,7 @@ class UserButton extends React.Component {
         lastMessageContent = lastMessageContent.substring(lastMessageContent.indexOf(">") + 1, lastMessageContent.lastIndexOf("<"));
       }
       if (this.props.lastMessage.owner === this.props.user.uid){
-        lastMessage = (this.props.lastMessage.viewed) ? <div className="last-message"><em>{this.readableDate()}</em><i>{lastMessageContent}</i></div> : <div className="last-message"><em>{this.readableDate()}</em><b>{this.props.lastMessage.text}</b></div>;
+        lastMessage = (this.props.lastMessage.viewed) ? <div className="last-message"><em>{this.readableDate()}</em><i>{lastMessageContent}</i></div> : <div className="last-message"><em>{this.readableDate()}</em><b>{lastMessageContent}</b></div>;
       }
       else {
         lastMessage = <div className="last-message"><em><span className="glyphicon glyphicon-share-alt"></span> {this.readableDate()}</em><i> {lastMessageContent}</i></div>

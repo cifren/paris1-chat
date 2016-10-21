@@ -7,12 +7,14 @@ class InputArea extends React.Component {
     this.state = {
       'user_typing': false
     };
+    this.keyboardEvent = this.keyboardEvent.bind(this);
+    this.mouseEvent = this.mouseEvent.bind(this);
+    this.keyboardEvent = this.keyboardEvent.bind(this);
     this.sendMessage = this.sendMessage.bind(this);
-    this.updateUserTyping = this.updateUserTyping.bind(this);
     this.uploadFile = this.uploadFile.bind(this);
   }
 
-  sendMessage(e){
+  keyboardEvent(e){
     let message = document.getElementById('input-text').value;
     if (e.keyCode && e.keyCode !== 13){
       this.updateUserTyping();
@@ -24,17 +26,26 @@ class InputArea extends React.Component {
         return;
       }
       message = message.substring(0, message.length - 1);
-      if (message.length > 0){
-        window.dispatchEvent(new CustomEvent('send_message', {
-          detail: {
-            room: this.props.room.room,
-            text: message,
-            receiver: this.props.room.penpal.uid
-          }
-        }));
-        document.getElementById('input-text').value = '';
-        this.updateUserTyping();
-      }
+      this.sendMessage(message);
+    }
+  }
+
+  mouseEvent(){
+    let message = document.getElementById('input-text').value;
+    this.sendMessage(message);
+  }
+
+  sendMessage(message){
+    if (message.length > 0){
+      window.dispatchEvent(new CustomEvent('send_message', {
+        detail: {
+          room: this.props.room.room,
+          text: message,
+          receiver: this.props.room.penpal.uid
+        }
+      }));
+      document.getElementById('input-text').value = '';
+      this.updateUserTyping();
     }
   }
 
@@ -82,13 +93,13 @@ class InputArea extends React.Component {
     }
     return (
       <div className="input_container">
-        <textarea onKeyUp={this.sendMessage} id="input-text" rows="1" placeholder="Taper votre message ici..."></textarea>
+        <textarea onKeyUp={this.keyboardEvent} id="input-text" rows="1" placeholder="Taper votre message ici..."></textarea>
         <div className="input_send">
-          <a onClick={this.sendMessage} href="#" title="Envoyer"><span className="glyphicon glyphicon-send"></span></a>
+          <a onClick={this.mouseEvent} href="#" title="Envoyer"><span className="glyphicon glyphicon-send"></span></a>
         </div>
         <div className="input_file_upload">
           <div>
-            <a onClick={function(){document.getElementById("input_file").click();}} href="#" title="Joindre un fichier"><span className="glyphicon glyphicon-paperclip"></span></a>
+            <a className={(this.props.room.fileUpload) ? "link-disabled" : null} onClick={function(){document.getElementById("input_file").click();}} href="#" title="Joindre un fichier"><span className="glyphicon glyphicon-paperclip"></span></a>
             <input style={styleDisplayNone} id="input_file" type="file" onChange={this.uploadFile}/>
           </div>
         </div>

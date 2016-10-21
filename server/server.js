@@ -290,6 +290,7 @@ io.on('connection', function(socket){
       message.viewed = true;
       message.save(function(err){
         if (err) return console.log(err);
+        io.to(users[socket.user].uid).emit('chat', JSON.stringify({'action': 'update_badge', 'data': message.room}));
         if (users[message.owner] && users[message.owner].uid){
           io.to(users[message.owner].uid).emit('chat', JSON.stringify({'action': 'message_viewed', 'data': message}));
         }
@@ -389,6 +390,9 @@ io.on('connection', function(socket){
               lastMessage.save(function(err, updatedMessage){
                 if (err) return console.log(err);
                 io.to(users[socket.user].uid).emit('chat', JSON.stringify({'action': 'update_badge', 'data': room._id}));
+                if (users[updatedMessage.owner] && users[updatedMessage.owner].uid){
+                  io.to(users[updatedMessage.owner].uid).emit('chat', JSON.stringify({'action': 'message_viewed', 'data': updatedMessage}));
+                }
               });
             }
           }
