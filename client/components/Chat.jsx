@@ -44,10 +44,12 @@ class Chat extends React.Component {
     this.manageSound = this.manageSound.bind(this);
     this.uploadProgress = this.uploadProgress.bind(this);
     this.sendMoreData = this.sendMoreData.bind(this);
-    this.favClick = this.favClick.bind(this);
+    this.contextMenu = this.contextMenu.bind(this);
     this.displayNotification = this.displayNotification.bind(this);
     this.checkNotification = this.checkNotification.bind(this);
     this.toggleNotification = this.toggleNotification.bind(this);
+    this.deleteConversation = this.deleteConversation.bind(this);
+    this.updateDeletedConversation = this.updateDeletedConversation.bind(this);
 
     this.connectToServer();
 
@@ -95,7 +97,9 @@ class Chat extends React.Component {
     window.addEventListener('send_message', this.sendMessage);
     window.addEventListener('user_typing', this.userTyping);
     window.addEventListener('upload_file', this.uploadFile);
-    window.addEventListener('fav_click', this.favClick);
+    window.addEventListener('context_menu', this.contextMenu);
+    window.addEventListener('del_conversation', this.deleteConversation);
+
 
     //TODO : Ne pas utiliser Jquery
     $(document).on('shown.bs.tab', 'a[data-toggle="tab"]', this.clickOnTab);
@@ -167,6 +171,9 @@ class Chat extends React.Component {
           break;
         case 'send_more_data':
           this.sendMoreData(recv.data);
+          break;
+        case 'update_del_conversation':
+          this.updateDeletedConversation(recv.data);
           break;
         default:
           console.log("Unknown action : " + recv.action);
@@ -437,7 +444,7 @@ class Chat extends React.Component {
     target.postMessage(message, "*");
   }
 
-  favClick(event){
+  contextMenu(event){
     let penpal = event.detail.user;
     let mousePosX = event.detail.mousePosX;
     let mousePosY = event.detail.mousePosY;
@@ -477,22 +484,57 @@ class Chat extends React.Component {
     contextMenu.onclick = removeMenu;
     contextMenu.oncontextmenu = removeMenu;
 
-    let li = document.createElement('li');
-    contextMenu.appendChild(li);
+    // Add or del favoris
+    let liFav = document.createElement('li');
+    contextMenu.appendChild(liFav);
 
-    let a = document.createElement('a');
-    li.appendChild(a);
-    a.onclick = function(e) {
+    let aFav = document.createElement('a');
+    liFav.appendChild(aFav);
+
+    aFav.onclick = function(e) {
       window.dispatchEvent(new CustomEvent('fav_button', {detail: {user: penpal}}));
     }
 
     if (this.state.favList[penpal.uid]){
       penpal.isFav = true;
-      a.innerHTML = "Retirer des favoris";
+      aFav.innerHTML = "Retirer des favoris";
     }
     else {
       penpal.isFav = false;
-      a.innerHTML = "Ajouter aux favoris";
+      aFav.innerHTML = "Ajouter aux favoris";
+    }
+
+    // Delete conversation
+    this.socket.emit('check_room_not_empty', [this.state.user.uid, penpal.uid].sort(), function(room){
+      if (room){
+        let liDelConv = document.createElement('li');
+        contextMenu.appendChild(liDelConv);
+
+        let aDelConv = document.createElement('a');
+        liDelConv.appendChild(aDelConv);
+        aDelConv.innerHTML = "Effacer la discussion";
+
+        aDelConv.onclick = function(e) {
+          window.dispatchEvent(new CustomEvent('del_conversation', {detail: {room: room, penpal: penpal}}));
+        }
+      }
+    });
+  }
+
+  deleteConversation(event){
+    let room = event.detail.room;
+    let penpal = event.detail.penpal;
+    this.socket.emit('del_conversation', {room: room, penpal: penpal})
+  }
+
+  updateDeletedConversation(room){
+    if (this.state.activeRoom.room === room){
+      this.state.activeRoom.messages = [];
+      this.setState({activeRoom: this.state.activeRoom});
+    }
+    if (this.state.roomList[room]){
+      delete this.state.roomList[room];
+      this.setState({roomList: this.state.roomList});
     }
   }
 
@@ -523,7 +565,6 @@ class Chat extends React.Component {
       this.socket.emit("upload_file", {'name': file.name, 'owner': this.state.user.uid, 'type': file.type, 'size': file.size, 'data': data}, function(data){
         let recv = JSON.parse(data);
         if (recv.successful){
-          console.log(recv);
           window.dispatchEvent(new CustomEvent("send_message", {
             detail: {
               room: room,

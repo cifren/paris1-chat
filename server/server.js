@@ -348,27 +348,25 @@ io.on('connection', function(socket){
   }
 
   Timer.prototype.setTimeout = function(callback, time) {
-      var self = this;
-      if(this.timer) {
-          clearTimeout(this.timer);
-      }
-      this.finished = false;
-      this.callback = callback;
-      this.time = time;
-      this.timer = setTimeout(function() {
-           self.finished = true;
-          callback();
-      }, time);
-      this.start = Date.now();
+    var self = this;
+    if(this.timer) {
+      clearTimeout(this.timer);
+    }
+    this.finished = false;
+    this.callback = callback;
+    this.time = time;
+    this.timer = setTimeout(function() {
+      self.finished = true;
+      callback();
+    }, time);
+    this.start = Date.now();
   }
 
   Timer.prototype.add = function(time) {
-     if(!this.finished) {
-         // add time to time left
-         time = this.time - (Date.now() - this.start) + time;
-         console.log(time);
-         this.setTimeout(this.callback, time);
-     }
+    if(!this.finished) {
+      time = this.time - (Date.now() - this.start) + time;
+      this.setTimeout(this.callback, time);
+    }
   }
 
   // Event received when user has disconnected
@@ -378,7 +376,6 @@ io.on('connection', function(socket){
       if (!navigating_users[socket.user]){
         navigating_users[socket.user] = Object.assign({}, users[socket.user]);
         navigating_users[socket.user].timer = new Timer(function(){
-          console.log("Exec timer");
           if (!users[socket.user]){
             socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_disconnected', 'user': navigating_users[socket.user]} ));
           }
@@ -386,7 +383,6 @@ io.on('connection', function(socket){
         }, 5000);
       }
       else if (navigating_users[socket.user] && navigating_users[socket.user].timer) {
-        console.log('add time to timer');
         navigating_users[socket.user].timer.add(5000);
       }
       delete users[socket.user];
@@ -604,6 +600,38 @@ io.on('connection', function(socket){
         fn();
       }
     }
+  });
+
+  socket.on('check_room_not_empty', function(recv, fn){
+    Room.findOne({users: recv}, function(err, room){
+      if(err) return console.log(err);
+      if (!room){
+        fn(false);
+      }
+      else {
+        Message.find({room: room._id}).exec(function(err, messages){
+          if (err) return console.log(err);
+          if (messages.length > 0){
+            fn(room._id);
+          }
+          else {
+            fn(false);
+          }
+        });
+      }
+    });
+  });
+
+  socket.on('del_conversation', function(recv){
+    Message.remove({room: recv.room}).exec(function(err, res){
+      if(err) return console.log(err);
+      if (res.result && res.result.ok){
+        io.to(users[socket.user].uid).emit('chat', JSON.stringify({'action': 'update_del_conversation', 'data': recv.room}));
+        if (users[recv.penpal.uid]){
+          io.to(users[recv.penpal.uid].uid).emit('chat', JSON.stringify({'action': 'update_del_conversation', 'data': recv.room}));
+        }
+      }
+    });
   });
 });
 

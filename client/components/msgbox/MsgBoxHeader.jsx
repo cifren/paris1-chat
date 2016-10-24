@@ -1,6 +1,6 @@
 import React from 'react';
 import UserStatus from '../core/UserStatus.jsx';
-import ButtonFav from './ButtonFav.jsx';
+import MsgBoxOptions from './MsgBoxOptions.jsx';
 import ButtonBack from './ButtonBack.jsx';
 
 class MsgBoxHeader extends React.Component {
@@ -28,7 +28,7 @@ class MsgBoxHeader extends React.Component {
             </div>
           </div>
         </li>
-        <li style={styleButtonFav} role="presentation"><ButtonFav room={this.props.room}/></li>
+        <MsgBoxOptions room={this.props.room}/>
       </ul>
     );
   }

@@ -16,7 +16,7 @@ class UserButton extends React.Component {
     let target = event.target;
     let mousePosX = event.clientX;
     let mousePosY = event.clientY;
-    window.dispatchEvent(new CustomEvent('fav_click', {detail: {
+    window.dispatchEvent(new CustomEvent('context_menu', {detail: {
       user: this.props.user,
       target: target,
       mousePosX: mousePosX,
