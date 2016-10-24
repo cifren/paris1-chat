@@ -24,7 +24,7 @@ class Chat extends React.Component {
     this.closeChat = this.closeChat.bind(this);
     this.sendStatus = this.sendStatus.bind(this);
     this.socketEventListener = this.socketEventListener.bind(this);
-    this.disconnectUser = this.disconnectUser.bind(this);
+    this.userDisconnected = this.userDisconnected.bind(this);
     this.connectUser = this.connectUser.bind(this);
     this.loadMsgBox = this.loadMsgBox.bind(this);
     this.manageFavList = this.manageFavList.bind(this);
@@ -150,8 +150,11 @@ class Chat extends React.Component {
         case 'message':
           this.addMessageToRoom(recv.data);
           break
+        case 'disconnect_user':
+          this.socket.disconnect();
+          break;
         case 'user_disconnected':
-          this.disconnectUser(recv.user);
+          this.userDisconnected(recv.user);
           break;
         case 'message_viewed':
           this.messageViewed(recv.data);
@@ -341,33 +344,36 @@ class Chat extends React.Component {
     }
   }
 
+  userDisconnected(user){
+    let notifyUser = true;
+    if (this.state.directionList[user.uid]){
+      delete this.state.directionList[user.uid];
+      this.setState({directionList: this.state.directionList});
+      if (user.status === "online" || user.status === "busy"){
+        this.socket.emit('display_notification', {uid: user.uid, action: "disconnection"}, function(){
+          this.displayNotification(user.name + " est maintenant hors ligne", "status")
+        }.bind(this));
+        notifyUser = false;
+      }
+    }
+    if (this.state.favList[user.uid]){
+      this.state.favList[user.uid].status = 'offline';
+      this.setState({favList: this.state.favList});
+      if (notifyUser && user.status === "online" || user.status === "busy"){
+        this.socket.emit('display_notification', {uid: user.uid, action: "disconnection"}, function(){
+          this.displayNotification(user.name + " est maintenant hors ligne", "status")
+        }.bind(this));
+      }
+    }
+    user.status = "offline";
+    this.updateActiveRoomStatus(user);
+    this.updateRoomListStatus(user);
+  }
+
   disconnectUser(user){
     let notifyUser = true;
     if (this.state.user.uid === user.uid){
       this.socket.disconnect();
-    }
-    else {
-      if (this.state.directionList[user.uid]){
-        delete this.state.directionList[user.uid];
-        this.setState({directionList: this.state.directionList});
-        if (user.status === "online" || user.status === "busy"){
-          this.socket.emit('display_notification', {uid: user.uid, action: "disconnection"}, function(){
-            this.displayNotification(user.name + " est maintenant hors ligne", "status")
-          }.bind(this));
-          notifyUser = false;
-        }
-      }
-      if (this.state.favList[user.uid]){
-        this.state.favList[user.uid].status = 'offline';
-        this.setState({favList: this.state.favList});
-        if (user.status === "online" || user.status === "busy"){
-          this.socket.emit('display_notification', {uid: user.uid, action: "disconnection"}, function(){
-            this.displayNotification(user.name + " est maintenant hors ligne", "status")
-          }.bind(this));
-        }
-      }
-      this.updateActiveRoomStatus(user);
-      this.updateRoomListStatus(user);
     }
   }
 

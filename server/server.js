@@ -343,24 +343,59 @@ io.on('connection', function(socket){
     });
   });
 
+  function Timer(callback, time) {
+    this.setTimeout(callback, time);
+  }
+
+  Timer.prototype.setTimeout = function(callback, time) {
+      var self = this;
+      if(this.timer) {
+          clearTimeout(this.timer);
+      }
+      this.finished = false;
+      this.callback = callback;
+      this.time = time;
+      this.timer = setTimeout(function() {
+           self.finished = true;
+          callback();
+      }, time);
+      this.start = Date.now();
+  }
+
+  Timer.prototype.add = function(time) {
+     if(!this.finished) {
+         // add time to time left
+         time = this.time - (Date.now() - this.start) + time;
+         console.log(time);
+         this.setTimeout(this.callback, time);
+     }
+  }
+
   // Event received when user has disconnected
   socket.on('disconnect', function () {
-    navigating_users[socket.user] = users[socket.user];
-    setTimeout(function(){
-      delete navigating_users[socket.user];
-    }, 5000);
-    socket.leave(socket.user);
     var clients = io.sockets.adapter.rooms[socket.user];
     if (typeof clients === "undefined"){
-      if (users[socket.user]) {
-        socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_disconnected', 'user': users[socket.user]} ));
-        delete users[socket.user];
+      if (!navigating_users[socket.user]){
+        navigating_users[socket.user] = Object.assign({}, users[socket.user]);
+        navigating_users[socket.user].timer = new Timer(function(){
+          console.log("Exec timer");
+          if (!users[socket.user]){
+            socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_disconnected', 'user': navigating_users[socket.user]} ));
+          }
+          delete navigating_users[socket.user];
+        }, 5000);
       }
+      else if (navigating_users[socket.user] && navigating_users[socket.user].timer) {
+        console.log('add time to timer');
+        navigating_users[socket.user].timer.add(5000);
+      }
+      delete users[socket.user];
     }
   });
 
   socket.on('close_chat', function(){
     if (users[socket.user]) {
+      io.to(users[socket.user].uid).emit('chat', JSON.stringify( {'action': 'disconnect_user'}));
       socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_disconnected', 'user': users[socket.user]} ));
       delete users[socket.user];
     }
@@ -557,16 +592,9 @@ io.on('connection', function(socket){
         var penpal_clients = io.sockets.adapter.rooms[recv.uid] && Object.keys(io.sockets.adapter.rooms[recv.uid].sockets);
         switch(recv.action){
           case "connection":
-            if(penpal_clients && penpal_clients.length === 1 && !navigating_users[recv.uid]){
+            if (penpal_clients && penpal_clients.length === 1 && !navigating_users[recv.uid]){
               fn();
             }
-            break;
-          case "disconnection":
-            setTimeout(function(){
-              if (!users[recv.uid] && !navigating_users[recv.uid]){
-                fn();
-              }
-            }, 5000);
             break;
           default:
             fn();
