@@ -4,10 +4,28 @@
 
 Messagerie instantanée de l'université Paris 1 Panthéon-Sorbonne conçue grâce à React.js pour la partie client et à Socket.io pour la partie serveur.
 
-## Screenshots
+## Utilisation
 
-![Screenshot home page](https://github.com/UnivParis1/paris1-chat/blob/dev/images/home.png)
+### Onglet accueil
 
-![Screenshot chat page](https://github.com/UnivParis1/paris1-chat/blob/dev/images/chat.png)
+L'onglet d'accueil contient une section qui regroupe tous les utilisateurs connectés dans votre direction et une section "favoris". Pour ajouter un utilisateur à vos favoris, il suffit d'utiliser le click droit sur l'icone du correspondant ou de séléctionner cette option lors d'une discussion.
 
-![Screenshot options page](https://github.com/UnivParis1/paris1-chat/blob/dev/images/options.png)
+### Onglet messages
+
+Dans cette onglet, vous accédez à l'historique de toutes vos conversations. Elle sont triées par ordre chronologique, de la plus récente à la plus ancienne (dernier message reçu). Vous pouvez supprimer une conversation en utilisant le click droit.
+
+### Recherche
+
+La barre de recherche permet de trouver une personne qui travaille dans une autre direction que la votre. Afin de revenir à l'onglet d'accueil, il faut que la barre de recherche soit vide ou commencer une discussion. Les personnes en liste rouge ne sont pas trouvable par la recherche.
+
+### Options
+
+Dans le menu "Options", vous pouvez mettre à jour votre statut (en ligne, occupé et invisible), activer ou désactiver les bruitages à la réception d'un nouveau message et gérer la visibilité de votre photo (Si votre correspondant ne peut pas voir votre photo, vous ne le pourrez pas non plus). En mode invisible, votre correspondant ne sera pas notifié lorsque vous écrivez un message ou lisez un message.
+
+### Minimiser et maximiser la fenêtre
+
+Vous pouvez minimiser le tchat en cliquant sur la barre de navigation ou dans le menu sur le bouton "minimiser". Lorsque le tchat est minimisé, il suffit de cliquer dessus pour l'agrandir.
+
+### Déconnexion
+
+Cliquez sur le bouton "Se déconnecter" pour quitter le tchat. Il faudra revenir sur cette page pour le réactiver.
