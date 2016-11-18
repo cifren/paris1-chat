@@ -20,25 +20,32 @@ var UserSchema = mongoose.Schema({
     required: true,
     default: 'online'
   },
-  service: {
+  affectationPrincipale: {
     type: String,
-    required: false,
-    trim: true
+    required: false
   },
-  service: [{
+  directions: [{
     type: String,
-    required: false
-  }],
-  direction: [{
-    type: String,
-    required: false
   }],
   favorites: [{
     type: ObjectId,
     ref: 'User'
   }],
+  eduPersonPrimaryAffiliation: {
+    type: String,
+    required: false
+  },
+  affiliationType: {
+    type: String,
+    required: true,
+  },
+  supannListeRouge: {
+    type: Boolean,
+    required: false
+  },
   modifyTimestamp: {
-    type: String
+    type: String,
+    required: false
   }
 });
 

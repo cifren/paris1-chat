@@ -28,7 +28,7 @@ class MsgBoxHeader extends React.Component {
             </div>
           </div>
         </li>
-        <MsgBoxOptions room={this.props.room}/>
+        <MsgBoxOptions user={this.props.user} room={this.props.room}/>
       </ul>
     );
   }

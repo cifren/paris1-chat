@@ -46,7 +46,7 @@ class UserButton extends React.Component {
     let month = msgDate.getMonth() + 1;
   }
   render() {
-    let lastMessage, affectation;
+    let lastMessage, affectationPrincipale;
     let userUid = this.props.user.user.split("@")[0];
     if (this.props.lastMessage){
       let lastMessageContent = this.props.lastMessage.text;
@@ -62,7 +62,7 @@ class UserButton extends React.Component {
     }
     else if (this.props.searchState){
       let styleEm = {fontSize: "1em"};
-      affectation = <em style={styleEm}>{this.props.user.service[1]}</em>
+      affectationPrincipale = <em style={styleEm}>{this.props.user.affectationPrincipale}</em>
     }
     return (
       <a onContextMenu={this.handleFavClick} onClick={this.handleClick} href="#">
@@ -72,7 +72,7 @@ class UserButton extends React.Component {
             <div className="user-container">
               <div className="user-name">
                 <div>{this.props.user.name}</div>
-                {affectation}
+                {affectationPrincipale}
               </div>
               <div className="chatbox_user_status">
                 <UserStatus status={this.props.user.status}/>

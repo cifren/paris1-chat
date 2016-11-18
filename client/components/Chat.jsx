@@ -10,7 +10,7 @@ class Chat extends React.Component {
   constructor(){
     super();
     this.state = {
-      directionList: {},
+      directionLists: {},
       favList: {},
       searchList: {},
       roomList: {},
@@ -19,13 +19,13 @@ class Chat extends React.Component {
       activeRoom: {},
       user: {status: 'offline'},
       chatBox: {minimized: true, currentTab: 'home'},
-      preferences: {sound: true, lang: 'fr', notification: "denied"}
+      preferences: {sound: true, lang: 'fr', notification: "denied", visibility: "everybody"}
     };
     this.closeChat = this.closeChat.bind(this);
     this.sendStatus = this.sendStatus.bind(this);
     this.socketEventListener = this.socketEventListener.bind(this);
-    this.userDisconnected = this.userDisconnected.bind(this);
-    this.connectUser = this.connectUser.bind(this);
+    this.updateLists = this.updateLists.bind(this);
+    this.notifyUpdateList = this.notifyUpdateList.bind(this);
     this.loadMsgBox = this.loadMsgBox.bind(this);
     this.manageFavList = this.manageFavList.bind(this);
     this.updateSearchList = this.updateSearchList.bind(this);
@@ -33,7 +33,6 @@ class Chat extends React.Component {
     this.minMaxBox = this.minMaxBox.bind(this);
     this.sendMessage = this.sendMessage.bind(this);
     this.uploadFile = this.uploadFile.bind(this);
-    this.changeStatusUser = this.changeStatusUser.bind(this);
     this.addMessageToRoom = this.addMessageToRoom.bind(this);
     this.updateRoomListStatus = this.updateRoomListStatus.bind(this);
     this.updateActiveRoomStatus = this.updateActiveRoomStatus.bind(this);
@@ -50,6 +49,8 @@ class Chat extends React.Component {
     this.toggleNotification = this.toggleNotification.bind(this);
     this.deleteConversation = this.deleteConversation.bind(this);
     this.updateDeletedConversation = this.updateDeletedConversation.bind(this);
+    this.manageVisibility = this.manageVisibility.bind(this);
+    this.setStatus = this.setStatus.bind(this);
 
     this.connectToServer();
 
@@ -73,6 +74,11 @@ class Chat extends React.Component {
     }.bind(this));
   }
 
+  setStatus(status){
+    this.state.user.status = status;
+    this.setState({user: this.state.user});
+  }
+
   closeChat(){
     this.socket.emit('close_chat')
     document.getElementById('app').style.display = "none";
@@ -89,6 +95,7 @@ class Chat extends React.Component {
     window.addEventListener('change_status', this.sendStatus);
     window.addEventListener('change_sound', this.manageSound);
     window.addEventListener('change_notification', this.toggleNotification);
+    window.addEventListener('change_visibility', this.manageVisibility);
     window.addEventListener('user_button', this.loadMsgBox);
     window.addEventListener('fav_button', this.manageFavList);
     window.addEventListener('search_keypress', this.updateSearchList);
@@ -99,7 +106,6 @@ class Chat extends React.Component {
     window.addEventListener('upload_file', this.uploadFile);
     window.addEventListener('context_menu', this.contextMenu);
     window.addEventListener('del_conversation', this.deleteConversation);
-
 
     //TODO : Ne pas utiliser Jquery
     $(document).on('shown.bs.tab', 'a[data-toggle="tab"]', this.clickOnTab);
@@ -114,7 +120,7 @@ class Chat extends React.Component {
     this.socket.on('disconnect', function(){
       this.setState({
         user: {status: 'offline'},
-        directionList: {},
+        directionLists: {},
         favList: {},
         activeRooms: {},
         activeRoom: {},
@@ -127,7 +133,7 @@ class Chat extends React.Component {
       let recv = JSON.parse(data);
       switch (recv.action){
         case 'direction_list':
-          this.setState({directionList: recv.data});
+          this.setState({directionLists: recv.data});
           break;
         case 'fav_list':
           this.setState({favList: recv.data});
@@ -142,23 +148,26 @@ class Chat extends React.Component {
         case 'update_badge':
           this.updateBadge(recv.data);
           break;
-        case 'new_user':
-          this.connectUser(recv.user);
+        case 'user_connected':
+          this.updateLists(recv.user, "connect");
+          break;
+        case 'user_changed_status':
+          this.updateLists(recv.user, "status");
+          break
+        case 'user_disconnected':
+          this.updateLists(recv.user, "disconnect");
           break;
         case 'user_typing':
           this.penpalTyping(recv.data);
           break;
-        case 'user_change_status':
-          this.changeStatusUser(recv.user);
-          break
         case 'message':
           this.addMessageToRoom(recv.data);
           break
         case 'disconnect_user':
           this.socket.disconnect();
           break;
-        case 'user_disconnected':
-          this.userDisconnected(recv.user);
+        case 'set_status':
+          this.setStatus(recv.data);
           break;
         case 'message_viewed':
           this.messageViewed(recv.data);
@@ -185,6 +194,7 @@ class Chat extends React.Component {
     this.state.preferences.sound = pref.sound;
     this.state.preferences.lang = pref.lang;
     this.state.preferences.notification = (Notification.permission !== "granted") ? "denied" : pref.notification;
+    this.state.preferences.visibility = pref.visibility;
     this.setState({preferences: this.state.preferences});
   }
 
@@ -260,80 +270,24 @@ class Chat extends React.Component {
     }
   }
 
-  changeStatusUser(user){
-    if (this.state.user.uid === user.uid){
-      this.setState({user: user});
-    }
-    else {
-      let statusLabel, notifyUser = true;
-      switch(user.status){
-        case "online":
-          statusLabel = "en ligne";
-          break;
-        case "busy":
-          statusLabel = "indisponible";
-          break;
-        default:
-          statusLabel = "hors ligne";
-          break;
-      }
-      if (this.state.directionList[user.uid]){
-        this.state.directionList[user.uid] = user;
-        this.setState({directionList: this.state.directionList});
-        this.socket.emit('display_notification', {uid: user.uid}, function(){
-          this.displayNotification(user.name + " est maintenant " + statusLabel, "status")
-        }.bind(this));
-        notifyUser = false;
-      }
-      if (this.state.favList[user.uid]){
-        this.state.favList[user.uid] = user;
-        this.setState({favList: this.state.favList});
-        if (notifyUser){
-          this.socket.emit('display_notification', {uid: user.uid}, function(){
-            this.displayNotification(user.name + " est maintenant " + statusLabel, "status")
-          }.bind(this));
-        }
-      }
-      this.updateActiveRoomStatus(user, user.status);
-      this.updateRoomListStatus(user, user.status);
+  manageVisibility(event){
+    let newVisibility = event.detail;
+    if (this.state.preferences.visibility !== newVisibility){
+      this.state.preferences.visibility = newVisibility;
+      this.socket.emit('save_pref', this.state.preferences);
     }
   }
 
-  connectUser(user){
-    let notifyUser = true;
-    if (this.state.user.uid !== user.uid && this.state.user.direction[0] === user.direction[0]){
-      this.state.directionList[user.uid] = user;
-      this.setState({directionList: this.state.directionList});
-      if (user.status === "online" || user.status === "busy"){
-        this.socket.emit('display_notification', {uid: user.uid, action: "connection"}, function(){
-          this.displayNotification(user.name + " est maintenant en ligne", "status")
-        }.bind(this));
-        notifyUser = false;
-      }
-    }
-    if (this.state.favList[user.uid]){
-      this.state.favList[user.uid] = user;
-      this.setState({favList: this.state.favList});
-      if (notifyUser && user.status === "online" || user.status === "busy"){
-        this.socket.emit('display_notification', {uid: user.uid, action: "connection"}, function(){
-          this.displayNotification(user.name + " est maintenant en ligne", "status")
-        }.bind(this));
-      }
-    }
-    this.updateActiveRoomStatus(user, user.status);
-    this.updateRoomListStatus(user, user.status);
-  }
-
-  updateRoomListStatus(user, status){
+  updateRoomListStatus(user){
     Object.keys(this.state.roomList).map((room) => {
       if (user.uid === this.state.roomList[room].penpal.uid){
-        this.state.roomList[room].penpal.status = status || 'offline';
+        this.state.roomList[room].penpal.status = user.status || 'offline';
         this.setState({roomList: this.state.roomList});
       }
     });
   }
 
-  updateActiveRoomStatus(user, status){
+  updateActiveRoomStatus(user){
     if (Object.keys(this.state.activeRoom).length !== 0 && this.state.activeRoom.penpal.uid === user.uid){
       this.state.activeRoom.penpal.status = user.status || 'offline';
       this.setState({activeRoom: this.state.activeRoom});
@@ -351,37 +305,82 @@ class Chat extends React.Component {
     }
   }
 
-  userDisconnected(user){
+  updateLists(user, action){
     let notifyUser = true;
-    if (this.state.directionList[user.uid]){
-      delete this.state.directionList[user.uid];
-      this.setState({directionList: this.state.directionList});
-      if (user.status === "online" || user.status === "busy"){
-        this.socket.emit('display_notification', {uid: user.uid, action: "disconnection"}, function(){
-          this.displayNotification(user.name + " est maintenant hors ligne", "status")
-        }.bind(this));
-        notifyUser = false;
+    let userUid = String(user.uid);
+    user.directions.map((direction) => {
+      if (this.state.directionLists[direction]) {
+        if (this.state.user.affiliationType !== user.affiliationType || this.state.user.uid === userUid){
+          return;
+        }
+        if (user.listeRouge && user.affiliationType === "student"){
+          return;
+        }
+        switch (action){
+          case "disconnect":
+            if (this.state.directionLists[direction].list[userUid]){
+              notifyUser = (user.status !== "invisible") ? true : false;
+              delete this.state.directionLists[direction].list[userUid];
+              this.setState({directionLists: this.state.directionLists});
+            }
+            break;
+          case "status":
+            if (this.state.directionLists[direction].list[userUid]){
+              this.state.directionLists[direction].list[userUid].status = user.status;
+              this.setState({directionLists: this.state.directionLists});
+            }
+            break;
+          default:
+            notifyUser = (user.status !== "invisible") ? true : false;
+            this.state.directionLists[direction].list[userUid] = user;
+            this.setState({directionLists: this.state.directionLists});
+        }
+        if (notifyUser){
+          this.notifyUpdateList(user, action);
+          notifyUser = false;
+        }
+      }
+    });
+    if (this.state.favList[userUid]){
+      switch (action){
+        case "disconnect":
+          notifyUser = (notifyUser && user.status !== "invisible") ? true : false;
+          this.state.favList[userUid].status = 'offline';
+          this.setState({favList: this.state.favList});
+          break;
+        case "status":
+          this.state.favList[userUid].status = user.status;
+          this.setState({favList: this.state.favList});
+        break;
+        default:
+          notifyUser = (notifyUser && user.status !== "invisible") ? true : false;
+          this.state.favList[userUid] = user;
+          this.setState({favList: this.state.favList});
+      }
+      if (notifyUser){
+        this.notifyUpdateList(user, action);
       }
     }
-    if (this.state.favList[user.uid]){
-      this.state.favList[user.uid].status = 'offline';
-      this.setState({favList: this.state.favList});
-      if (notifyUser && user.status === "online" || user.status === "busy"){
-        this.socket.emit('display_notification', {uid: user.uid, action: "disconnection"}, function(){
-          this.displayNotification(user.name + " est maintenant hors ligne", "status")
-        }.bind(this));
-      }
-    }
-    user.status = "offline";
     this.updateActiveRoomStatus(user);
     this.updateRoomListStatus(user);
   }
 
-  disconnectUser(user){
-    let notifyUser = true;
-    if (this.state.user.uid === user.uid){
-      this.socket.disconnect();
+  notifyUpdateList(user, action){
+    let statusLabel;
+    switch(user.status){
+      case "online":
+        statusLabel = "en ligne";
+        break;
+      case "busy":
+        statusLabel = "indisponible";
+        break;
+      default:
+        statusLabel = "hors ligne";
+        break;
     }
+    this.socket.emit('display_notification', {uid: user.uid, action: action}, function(){
+      this.displayNotification(user.name + " est maintenant " + statusLabel, "status")
+    }.bind(this));
   }
 
   loadMsgBox(event){
@@ -485,23 +484,25 @@ class Chat extends React.Component {
     contextMenu.oncontextmenu = removeMenu;
 
     // Add or del favoris
-    let liFav = document.createElement('li');
-    contextMenu.appendChild(liFav);
+    if (!penpal.listeRouge || this.state.affiliationType === "staff"){
+      let liFav = document.createElement('li');
+      contextMenu.appendChild(liFav);
 
-    let aFav = document.createElement('a');
-    liFav.appendChild(aFav);
+      let aFav = document.createElement('a');
+      liFav.appendChild(aFav);
 
-    aFav.onclick = function(e) {
-      window.dispatchEvent(new CustomEvent('fav_button', {detail: {user: penpal}}));
-    }
+      aFav.onclick = function(e) {
+        window.dispatchEvent(new CustomEvent('fav_button', {detail: {user: penpal}}));
+      }
 
-    if (this.state.favList[penpal.uid]){
-      penpal.isFav = true;
-      aFav.innerHTML = "Retirer des favoris";
-    }
-    else {
-      penpal.isFav = false;
-      aFav.innerHTML = "Ajouter aux favoris";
+      if (this.state.favList[penpal.uid]){
+        penpal.isFav = true;
+        aFav.innerHTML = "Retirer des favoris";
+      }
+      else {
+        penpal.isFav = false;
+        aFav.innerHTML = "Ajouter aux favoris";
+      }
     }
 
     // Delete conversation
@@ -677,7 +678,7 @@ class Chat extends React.Component {
     }
     return (
       <div>
-        <ChatBox user={this.state.user} directionList={this.state.directionList} favList={this.state.favList}
+        <ChatBox user={this.state.user} directionLists={this.state.directionLists} favList={this.state.favList}
         searchState={this.state.searchState} searchList={this.state.searchList} roomList={this.state.roomList} state={this.state.chatBox}
         preferences={this.state.preferences}/>
         {activeRoom}

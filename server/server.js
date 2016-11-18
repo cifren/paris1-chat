@@ -15,23 +15,23 @@ qs       = require('querystring'),
 LDAP     = require('ldap-client'),
 async    = require('async');
 
-var users = {}, files = {}, navigating_users= {};
-
 // Load schema
 var User   = require('./models/user'),
 Preference = require('./models/preference'),
 Message    = require('./models/message'),
 Room       = require('./models/room');
 
-// LDAP Search for structures
-var structures = {};
+var users = {}, files = {}, structures = {},  navigating_users= {};
+
+var staffAffiliation = ["staff", "teacher", "researcher", "emeritus", "retired"],
+studentAffiliation = ["student", "alum"];
 
 var ldap = new LDAP({
     uri: config.ldap.uri,
-    base: config.ldap.base,
+    base: config.ldap.baseStr,
     scope: config.ldap.scope,
     filter: config.ldap.filter,
-    attrs: config.ldap.attrs,
+    attrs: config.ldap.attrsStr,
     connecttimeout: 5
 });
 
@@ -68,7 +68,7 @@ function getDirection(service, callback){
   ldap.search({filter: "(supannCodeEntite=" + service + ")"}, function(err, data){
     if (err) return console.log(err);
     if (!data[0].up1Flags || data[0].up1Flags.indexOf("included") === -1){
-      return callback(null, service);
+      return callback(err, service);
     }
     else {
       return getDirection(data[0].supannCodeEntiteParent[0], callback);
@@ -76,37 +76,78 @@ function getDirection(service, callback){
   });
 }
 
-function getModifyTimestamp(eppn, callback){
-  if (eppn.indexOf("univ-paris1") === -1){
-    return callback(null, null);
-  }
-  ldap.search({base: "ou=people,dc=univ-paris1,dc=fr",
-    filter: "(eduPersonPrincipalName=" + eppn + ")",
-    attrs: "modifyTimestamp"
-  }, function(err, data){
+function getAffiliationType(affiliation){
+  var affiliationType = (staffAffiliation.indexOf(affiliation) >= 0) ? "staff" : null;
+  if (!affiliationType) affiliationType = (studentAffiliation.indexOf(affiliation) >= 0) ? "student" : "guest";
+  return affiliationType;
+}
+
+function getVisibility(user, callback){
+  Preference.findOne({user: user._id}, function(err, pref){
     if (err) return console.log(err);
-    return callback(null, data[0] && data[0].modifyTimestamp[0]);
+    user.visibility = pref.visibility;
+    callback(err, user)
   });
 }
 
-function sendDirectionList(socket, user){
-  var directionList = {};
-  for (var usr in users){
-    if (String(users[usr].uid) === String(user.uid)) continue;
-    if (String(users[usr].direction[0]) === String(user.direction[0])){
-      directionList[usr] = {
-        'uid': users[usr].uid,
-        'user': users[usr].user,
-        'name': users[usr].name,
-        'status': users[usr].status,
-        'service': users[usr].service,
-        'direction': users[usr].direction,
-        'modifyTimestamp': users[usr].modifyTimestamp
-      };
-    }
+function getLDAPAttributes(eppn, callback){
+  if (eppn.indexOf("univ-paris1") === -1){
+    return callback(null, {
+      eduPersonPrimaryAffiliation: "guest",
+      supannListeRouge: false
+    });
   }
-  if (Object.keys(directionList).length > 0)
-    socket.emit('chat', JSON.stringify({'action': 'direction_list', 'data': directionList}));
+  ldap.search({base: config.ldap.basePeople,
+    filter: "(eduPersonPrincipalName=" + eppn + ")",
+    attrs: config.ldap.attrsPeople
+  }, function(err, data){
+    if (err) return console.log(err);
+    var results = {
+      eduPersonPrimaryAffiliation: data[0] && data[0].eduPersonPrimaryAffiliation[0],
+      supannListeRouge: data[0] && (data[0].supannListeRouge[0] === "TRUE") ? true : false,
+      modifyTimestamp: data[0] && data[0].modifyTimestamp[0]
+    };
+    return callback(err, results);
+  });
+}
+
+function sendDirectionLists(socket, user){
+  var directionLists = {};
+  function findUsersByDirection(direction, callback){
+    User.find({directions: direction, affiliationType: user.affiliationType}, function(err, user_list){
+      if (err) return console.log(err);
+      var directionList = {name: structures[direction], code: direction, list: {}};
+      for (var i in user_list){
+        if (String(user.uid) === String(user_list[i]._id)){
+          continue;
+        }
+        else if (!users[user_list[i]._id]){
+          continue;
+        }
+        else if (user_list[i].listeRouge && user.affiliationType !== "staff"){
+          continue;
+        }
+        directionList.list[user_list[i]._id] = {
+          'uid': user_list[i]._id,
+          'user': user_list[i].user,
+          'name': user_list[i].name,
+          'status': users[user_list[i]._id].status,
+          'listeRouge': users[user_list[i]._id].supannListeRouge,
+          'modifyTimestamp': user_list[i].modifyTimestamp
+        };
+      }
+      callback(err, directionList);
+    });
+  }
+
+  async.map(user.directions, findUsersByDirection, function(err, direction_lists){
+    for (var i in direction_lists){
+      directionLists[direction_lists[i].code] = direction_lists[i];
+    }
+    if (Object.keys(directionLists).length > 0){
+      socket.emit('chat', JSON.stringify({'action': 'direction_list', 'data': directionLists}));
+    }
+  });
 }
 
 function sendFavList(socket, user){
@@ -114,13 +155,16 @@ function sendFavList(socket, user){
   User.find({_id: {$in: user.favorites}}, function(err, fav_list){
     if (err) return console.log(err);
     for (var i in fav_list){
+      if (fav_list[i].supannListeRouge && user.affiliationType !== "staff"){
+        user.favorites.splice(user.favorites.indexOf(fav_list[i]._id), 1);
+        user.save();
+        continue;
+      }
       favList[fav_list[i]._id] = {
         'uid': fav_list[i]._id,
         'user': fav_list[i].user,
         'name': fav_list[i].name,
         'status': users[fav_list[i]._id] && users[fav_list[i]._id].status || 'offline',
-        'service': fav_list[i].service,
-        'direction': fav_list[i].direction,
         'modifyTimestamp': fav_list[i].modifyTimestamp
       };
     }
@@ -134,7 +178,7 @@ function sendRoomList(socket, user){
   var findData = function(room, callback){
     async.parallel({
       findPenpal: function(cb){
-        var penpalIndice = (String(room.users[0]) === String(user.uid)) ? 1 : 0;
+        var penpalIndice = (String(room.users[0]) === String(user._id)) ? 1 : 0;
         User.findById(room.users[penpalIndice]).exec(cb);
       },
       findLastMessage: function(cb){
@@ -149,8 +193,7 @@ function sendRoomList(socket, user){
           'user': result.findPenpal.user,
           'name': result.findPenpal.name,
           'status': users[result.findPenpal._id] && users[result.findPenpal._id].status || 'offline',
-          'service': result.findPenpal.service,
-          'direction': result.findPenpal.direction,
+          'listeRouge': result.findPenpal.supannListeRouge,
           'modifyTimestamp': result.findPenpal.modifyTimestamp
 
         };
@@ -170,40 +213,62 @@ function sendRoomList(socket, user){
 }
 
 function sendPreferences(socket, user){
-  Preference.findOne({user: user.uid}, function(err, pref){
+  Preference.findOne({user: user._id}, function(err, pref){
     if (err) return console.log(err);
-    io.to(users[socket.user].uid).emit('chat', JSON.stringify({'action': 'preferences', 'data': {sound: pref.sound, lang: pref.lang, notification: pref.notification}}));
+    io.to(users[socket.user].uid).emit('chat', JSON.stringify({action: 'preferences', data: {
+      sound: pref.sound,
+      lang: pref.lang,
+      notification: pref.notification,
+      visibility: pref.visibility
+    }}));
   });
 }
 
 function addUserToChat(socket, user, fn){
 
-  var user_settings = {
+  var send_to_client = {
     'uid': user._id,
     'user': user.user,
     'name': user.name,
     'status': user.status,
-    'service': user.service,
-    'direction': user.direction,
+    'service': user.affectationPrincipale,
+    'directions': user.directions,
+    'directionsLabels': user.directions.map(function(direction){
+      return structures[direction];
+    }),
     'favorites': user.favorites,
+    'affiliationType': user.affiliationType,
+    'listeRouge': user.supannListeRouge,
     'modifyTimestamp': user.modifyTimestamp
   };
 
   if (typeof fn !== 'undefined') {
-    fn(JSON.stringify( {'login': 'successful', 'user_props': user_settings}));
+    fn(JSON.stringify( {'login': 'successful', 'user_props': send_to_client}));
   }
 
-  socket.join(String(user_settings.uid));
-  socket.user = user_settings.uid;
-  users[socket.user] = user_settings;
+  user.uid = user._id;
 
-  sendPreferences(socket, user_settings);
-  sendDirectionList(socket, user_settings);
-  sendFavList(socket, user_settings);
-  sendRoomList(socket, user_settings);
+  socket.join(String(user.uid));
+  socket.user = user.uid;
+  users[socket.user] = user;
 
-  // Send new user is connected to everyone
-  socket.broadcast.emit('chat', JSON.stringify( {'action': 'new_user', 'user': users[socket.user]} ));
+  sendPreferences(socket, user);
+  sendDirectionLists(socket, user);
+  sendFavList(socket, user);
+  sendRoomList(socket, user);
+
+  var send_to_broadcast = {
+    'uid': user._id,
+    'user': user.user,
+    'name': user.name,
+    'status': user.status,
+    'directions': user.directions,
+    'affiliationType': user.affiliationType,
+    'listeRouge': user.supannListeRouge,
+    'modifyTimestamp': user.modifyTimestamp
+  };
+
+  socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_connected', 'user': send_to_broadcast} ));
 }
 
 io.on('connection', function(socket){
@@ -211,38 +276,51 @@ io.on('connection', function(socket){
   socket.on('join', function (fn) {
 
     var recv = {};
+
     // Shibboleth auth using handshake's http headers
     recv.user = socket.handshake.headers.remote_user;
     recv.name = decodeURIComponent(escape(socket.handshake.headers.displayname));
-    recv.service = socket.handshake.headers.supannentiteaffectationprincipale;
+    recv.affectations = socket.handshake.headers.supannentiteaffectation.split(";") || ["guest"];
+    recv.affectationPrincipale = socket.handshake.headers.supannentiteaffectationprincipale ||
+                                 recv.affectations && recv.affectations[0] ||
+                                 "guest";
 
     if (!recv.user || !recv.name) {
       socket.emit('custom_error', { message: 'User not found or invalid' });
       return;
     }
 
-    if (!recv.service || recv.service.length === 0){
-      recv.service = "guest";
-    }
-
     User.findOne({user: recv.user}, function(err, user){
       if (err) return console.log(err);
 
       async.parallel({
-        direction: function(callback){return getDirection(recv.service, callback)},
-        modifyTimestamp: function(callback){return  getModifyTimestamp(recv.user, callback)}
+        getDirection: function(callback){return async.map(recv.affectations, getDirection, callback)},
+        getLDAPAttributes: function(callback){return  getLDAPAttributes(recv.user, callback)}
         }, function(err, results){
           if (!user) {
           var newUser = new User({
               user: recv.user,
               name: recv.name,
-              service: [recv.service, structures[recv.service]],
-              direction: [results.direction, structures[results.direction]],
-              modifyTimestamp: results.modifyTimestamp
+              affectationPrincipale: recv.affectationPrincipale,
+              directions: results.getDirection,
+              eduPersonPrimaryAffiliation: results.getLDAPAttributes.eduPersonPrimaryAffiliation,
+              affiliationType: getAffiliationType(results.getLDAPAttributes.eduPersonPrimaryAffiliation),
+              listeRouge: results.getLDAPAttributes.supannListeRouge,
+              modifyTimestamp: results.getLDAPAttributes.modifyTimestamp
           });
           newUser.save(function(err, newUser) {
             if (err) return console.log(err);
-            var newPref = new Preference({user: newUser._id});
+            var visibility;
+            if (staffAffiliation.indexOf(newUser.eduPersonPrimaryAffiliation) >= 0){
+              visibility = "staff";
+            }
+            else {
+              visibility = "everybody";
+            }
+            var newPref = new Preference({
+              user: newUser._id,
+              visibility: visibility
+            });
             newPref.save(function(err, newPref){
               if (err) return console.log(err);
               addUserToChat(socket, newUser, fn);
@@ -251,16 +329,13 @@ io.on('connection', function(socket){
         }
         // Already registered user
         else {
-          if (recv.name !== user.name){
-            user.name = recv.name;
-          }
-          if (recv.service !== user.service){
-              user.service = [recv.service, structures[recv.service]];
-              user.direction = [results.direction, structures[results.direction]];
-          }
-          if (results.modifyTimestamp !== user.modifyTimestamp){
-            user.modifyTimestamp = results.modifyTimestamp;
-          }
+          user.name = recv.name;
+          user.directions = results.getDirection;
+          user.affectationPrincipale = recv.affectationPrincipale;
+          user.eduPersonPrimaryAffiliation = results.getLDAPAttributes.eduPersonPrimaryAffiliation;
+          user.affiliationType = getAffiliationType(results.getLDAPAttributes.eduPersonPrimaryAffiliation);
+          user.supannListeRouge = results.getLDAPAttributes.supannListeRouge;
+          user.modifyTimestamp = results.getLDAPAttributes.modifyTimestamp;
           user.save(function(err, user){
             if(err) return console.log(err);
             addUserToChat(socket, user, fn);
@@ -270,14 +345,14 @@ io.on('connection', function(socket){
     });
   });
 
-  // Event received when user want change his status
-  socket.on('change_status', function (recv, fn) {
+  // Event received when user change his status
+  socket.on('change_status', function (recv) {
     if (users[socket.user]){
       User.update({_id: recv.uid}, {$set: {status: recv.status}}, function(err, updated_user){
         if (err) return console.log(err);
         users[socket.user].status = recv.status;
-        socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_change_status', 'user': users[socket.user]}));
-        fn();
+        io.to(users[socket.user].uid).emit('chat', JSON.stringify( {'action': 'set_status', 'data': users[socket.user].status} ));
+        socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_changed_status', 'user': {'uid': users[socket.user].uid, 'name': users[socket.user].name, 'directions': users[socket.user].directions, 'affiliationType': users[socket.user].affiliationType, 'status': users[socket.user].status}}));
       });
     }
   });
@@ -372,9 +447,14 @@ io.on('connection', function(socket){
   // Event received when user has disconnected
   socket.on('disconnect', function () {
     var clients = io.sockets.adapter.rooms[socket.user];
-    if (typeof clients === "undefined"){
+    if (users[socket.user] && typeof clients === "undefined"){
       if (!navigating_users[socket.user]){
-        navigating_users[socket.user] = Object.assign({}, users[socket.user]);
+        navigating_users[socket.user] = {
+          uid: users[socket.user].uid,
+          name: users[socket.user].name,
+          directions: users[socket.user].directions,
+          affiliationType: users[socket.user].affiliationType
+        };
         navigating_users[socket.user].timer = new Timer(function(){
           if (!users[socket.user]){
             socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_disconnected', 'user': navigating_users[socket.user]} ));
@@ -392,7 +472,7 @@ io.on('connection', function(socket){
   socket.on('close_chat', function(){
     if (users[socket.user]) {
       io.to(users[socket.user].uid).emit('chat', JSON.stringify( {'action': 'disconnect_user'}));
-      socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_disconnected', 'user': users[socket.user]} ));
+      socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_disconnected', 'user': {'uid': users[socket.user].uid, 'name': users[socket.user].name, 'directions': users[socket.user].directions, 'affiliationType': users[socket.user].affiliationType}}));
       delete users[socket.user];
     }
   });
@@ -458,21 +538,52 @@ io.on('connection', function(socket){
       User.find({'name': {'$regex': new RegExp(strRegex, "gim")}}, function(err, results){
         if (err) return console.log(err);
         var users_found = {};
-        for (var usr in results){
-          if (String(results[usr]._id) === String(users[socket.user].uid)) continue;
-          users_found[results[usr]._id] = {
-            'uid': results[usr]._id,
-            'user': results[usr].user,
-            'name': results[usr].name,
-            'status': users[results[usr]._id] && users[results[usr]._id].status || "offline",
-            'service': results[usr].service,
-            'direction': results[usr].direction,
-            'modifyTimestamp': results[usr].modifyTimestamp
+        async.map(results, getVisibility, function(err, results){
+          for (var usr in results){
+            if (String(results[usr]._id) === String(users[socket.user].uid)){
+              continue;
+            }
+            if (results[usr].supannListeRouge && !users[socket.user].affiliationType === "staff"){
+              continue;
+            }
+            switch (results[usr].visibility){
+              case "direction":
+                var isInDirection = false;
+                for (var i in results[usr].directions){
+                  if (users[socket.user].directions.indexOf(results[usr].directions[i]) !== -1){
+                    isInDirection = true;
+                  }
+                }
+                if (!isInDirection){
+                  continue;
+                }
+                break;
+              case "student":
+                if (studentAffiliation.indexOf(users[socket.user].eduPersonPrimaryAffiliation) === -1){
+                  continue;
+                }
+                break;
+              case "staff":
+                if (staffAffiliation.indexOf(users[socket.user].eduPersonPrimaryAffiliation) === -1){
+                  continue;
+                }
+                break;
+            }
+            users_found[results[usr]._id] = {
+              'uid': results[usr]._id,
+              'user': results[usr].user,
+              'name': results[usr].name,
+              'status': users[results[usr]._id] && users[results[usr]._id].status || "offline",
+              'affectationPrincipale': structures[results[usr].affectationPrincipale],
+              'listeRouge': results[usr].supannListeRouge,
+              'modifyTimestamp': results[usr].modifyTimestamp
+            }
           }
-        }
-        if (typeof fn !== 'undefined')
-          fn(JSON.stringify({successful: true, users_found}))
-      });
+          if (typeof fn !== 'undefined'){
+            fn(JSON.stringify({successful: true, users_found}))
+          }
+        });
+      }).limit(50);
     }
   });
 
@@ -483,9 +594,10 @@ io.on('connection', function(socket){
           pref.sound = recv.sound;
           pref.lang = recv.lang;
           pref.notification = recv.notification;
+          pref.visibility = recv.visibility;
           pref.save(function(err, updatedPref){
             if (err) return console.log(err);
-            io.to(users[socket.user].uid).emit('chat', JSON.stringify({'action': 'preferences', 'data': {sound: updatedPref.sound, lang: updatedPref.lang, notification: updatedPref.notification}}));
+            io.to(users[socket.user].uid).emit('chat', JSON.stringify({'action': 'preferences', 'data': {sound: updatedPref.sound, lang: updatedPref.lang, notification: updatedPref.notification, visibility: updatedPref.visibility}}));
           });
       });
     }
@@ -502,13 +614,9 @@ io.on('connection', function(socket){
     files[recv.name].path = path.join(upload_dir, recv.name);
     var place = 0;
     fs.open(files[recv.name].path, "a", "0755", function(err, fd){
-      if (err){
-        console.log(err);
-      }
-      else {
-        files[recv.name].handler = fd;
-        socket.emit("chat", JSON.stringify({'action': 'send_more_data', 'data': {"place": place, "progress": files[recv.name].progress}}));
-      }
+      if (err) return console.log(err);
+      files[recv.name].handler = fd;
+      socket.emit("chat", JSON.stringify({'action': 'send_more_data', 'data': {"place": place, "progress": files[recv.name].progress}}));
     })
   });
 
@@ -574,6 +682,7 @@ io.on('connection', function(socket){
           'status': users[user._id] && users[user._id].status || 'offline',
           'service': user.service,
           'direction': user.direction,
+          'listeRouge': user.supannListeRouge,
           'modifyTimestamp': user.modifyTimestamp
         };
         fn(JSON.stringify({room: recv.room, update: {lastMessage: recv, penpal: penpal}}));
@@ -587,7 +696,7 @@ io.on('connection', function(socket){
       if (recv && recv.uid){
         var penpal_clients = io.sockets.adapter.rooms[recv.uid] && Object.keys(io.sockets.adapter.rooms[recv.uid].sockets);
         switch(recv.action){
-          case "connection":
+          case "connect":
             if (penpal_clients && penpal_clients.length === 1 && !navigating_users[recv.uid]){
               fn();
             }
@@ -679,7 +788,7 @@ var server = http.createServer(function(req, res){
         return;
       }
 
-      res.writeHead(200);
+      res.writeHead(200, {"Cache-Control": "max-age=0"});
       res.write(file, "binary");
       res.end();
     });

@@ -13,7 +13,7 @@ class MsgBox extends React.Component {
     let msgBox;
     if (!this.props.room.minimized){
       msgBox =  <div className="panel panel-default">
-                  <MsgBoxHeader room={this.props.room}/>
+                  <MsgBoxHeader user={this.props.user} room={this.props.room}/>
                   <MsgBoxBody user={this.props.user} room={this.props.room}/>
                   <MsgBoxFooter room={this.props.room}/>
                 </div>;

@@ -1,6 +1,5 @@
 import React from 'react';
 import UserButton from './UserButton.jsx'
-//import {ContextMenu, MenuItem, ContextMenuLayer} from 'react-contextmenu';
 
 class ChatBoxBodySection extends React.Component {
   constructor(props) {
@@ -46,7 +45,7 @@ class ChatBoxBodySection extends React.Component {
   render() {
     let tabContent = Object.keys(this.props.list);
     let content, title;
-    let sectionId = this.props.title.replace(" ", "-").toLowerCase();
+    let sectionId = this.props.title.replace(/ /g, "_").toLowerCase();
     if (this.props.title === "Mes messages"){
       tabContent.sort(this.sortByDate);
       title = <h5 className="title">{this.props.title}</h5>;

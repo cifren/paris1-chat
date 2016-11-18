@@ -24,6 +24,11 @@ var PreferenceSchema = mongoose.Schema({
         type: String,
         default: "denied",
         required: false
+    },
+    visibility: {
+        type: String,
+        default: "everybody",
+        required: false
     }
 });
 

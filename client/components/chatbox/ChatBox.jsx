@@ -36,7 +36,7 @@ class ChatBox extends React.Component {
       chatBox = <div className="panel panel-default">
                   <ChatBoxHeader notification={this.countNotifications().length} minimized={this.state.minimized} status={this.props.user.status} currentTab={this.state.currentTab}/>
                   <div style={styleHeight} className="tab-content">
-                    <ChatBoxHome user={this.props.user} directionList={this.props.directionList} favList={this.props.favList}
+                    <ChatBoxHome user={this.props.user} directionLists={this.props.directionLists} favList={this.props.favList}
                     searchState={this.props.searchState} searchList={this.props.searchList} currentTab={this.state.currentTab}/>
                     <ChatBoxMessage user={this.props.user} searchState={this.props.searchState} searchList={this.props.searchList} roomList={this.props.roomList} currentTab={this.state.currentTab}/>
                     <ChatBoxOptions user={this.props.user} preferences={this.props.preferences} currentTab={this.state.currentTab}/>

@@ -18,13 +18,13 @@ class DropDownNotification extends React.Component {
   render() {
     let item;
     if (!window.Notification){
-      let title = "Votre navigateur ne supporte pas les notifications HTML 5."
-      item = <button className="btn btn-default dropdown-toggle dropdownButton" type="button" disabled="disabled" id="dropDownNotification" title={title}>
+      let title = "Votre navigateur ne supporte pas les notifications HTML 5.";
+      item = <button className="btn btn-default dropdown-toggle dropdownButton" type="button" id="dropDownNotification" title={title}>
         Désactivées
       </button>;
     }
     else if (Notification.permission !== "granted"){
-      let title = "Votre navigateur bloque les notifications, pour les activer il faut vous rendre dans les paramètres de ce dernier."
+      let title = "Votre navigateur bloque les notifications, pour les activer il faut vous rendre dans les paramètres de ce dernier.";
       item = <button className="btn btn-default dropdown-toggle dropdownButton" type="button" id="dropDownNotification" title={title}>
         Désactivées
       </button>;
