@@ -4,3 +4,8 @@ uploads/
 server/config.js
 client/config.js
 client/bundle.js
+npm-debug.log
+
+
+// Personal environment for Eclipse Che
+.codenvy.json
