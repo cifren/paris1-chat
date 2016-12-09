@@ -1,5 +1,35 @@
 # Paris1-chat
 
+## Installation
+
+You need to install (PYTHON)[https://gist.github.com/lukaslundgren/2659457] on your server.
+
+```
+sudo apt-get update
+sudo apt-get install libldap2-dev mongodb
+
+npm install
+```
+You need to configure Mongodb, see (Install mongodb)[doc/install_mongodb.md]
+
+This application has 2 sides, a client for the user interface and a server to centralize information.
+
+## Server side
+
+```
+npm run dev-server
+```
+
+## Client side
+
+```
+# Run the build
+npm run build-client
+
+# Run the webpack-dev-server
+npm run dev-client
+```
+
 ## Présentation
 
 Messagerie instantanée de l'université Paris 1 Panthéon-Sorbonne conçue grâce à React.js pour la partie client et à Socket.io pour la partie serveur.
