@@ -4,7 +4,7 @@
   "description": "Chat app for university Paris 1",
   "main": "server/server.js",
   "scripts": {
-    "build-client": "cd ./client && webpack",
+    "build-client": "cd ./client && webpack --progress --colors --profile",
     "dev-client": "cd ./client && webpack-dev-server --progress --colors",
     "dev-server": "nodemon --debug server/server.js",
     "start": "node server/server.js"
