@@ -1,9 +1,12 @@
-var path = require('path');
-var webpack = require('webpack');
+var path = require('path'),
+  webpack = require('webpack'),
+  CopyWebpackPlugin = require('copy-webpack-plugin');
 
 module.exports = {
   devServer:{
     port: 6001,
+    // Open a door for docker/outside access, port to port access
+    host: "0.0.0.0"
   },
   entry: './app.js',
   output: {
@@ -28,6 +31,15 @@ module.exports = {
       'process.env': {
         'NODE_ENV': JSON.stringify(process.env.NODE_ENV)
       }
-    })
+    }),
+    new CopyWebpackPlugin([
+        {
+            from: 'css/*',
+            to: './'
+        },{
+            from: '*.html',
+            to: './'
+        }
+    ]),
   ]
 };

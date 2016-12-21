@@ -750,8 +750,7 @@ var server = http.createServer(function(req, res){
   var urlParts = url.parse(req.url, true);
   var uri = urlParts.pathname;
   if (uri === "/login") uri = "/";
-  var filename = path.join(__dirname, "../client" + uri);
-
+  var filename = path.join(__dirname, "../client/build/" + uri);
   if (!req.headers.cookie || req.headers.cookie.indexOf('_shibsession_') === -1){
     var idpId = "";
     if (urlParts.query.idpId){
