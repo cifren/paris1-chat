@@ -1,5 +1,4 @@
 var io       = require('socket.io')({path: "/sockets"}),
-    qs       = require('querystring'),
     async    = require('async'),
     user_ldap    = require('./modules/user-ldap/app.js'),
     config = require('./config'),

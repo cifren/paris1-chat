@@ -1,5 +1,7 @@
+var qs = require('querystring');
+
 var shibboleth = {
-  login: function(req, res, urlParts, config){
+  login: function(req, res, urlParts, config, uri){
     if (!req.headers.cookie || req.headers.cookie.indexOf('_shibsession_') === -1){
         var idpId = "";
         if (urlParts.query.idpId){
