@@ -16,18 +16,37 @@ This application has 2 sides, a client for the user interface and a server to ce
 
 ## Server side
 
-```
+``` shell
 npm run dev-server
 ```
 
 ## Client side
 
-```
+``` shell
 # Run the build
 npm run build-client
 
 # Run the webpack-dev-server
 npm run dev-client
+```
+
+## Use the tchat
+
+In your package.json, call the module as a dependance
+``` json
+  "dependencies": {
+    "p1_tchat": "git+https://github.com/UnivParis1/paris1-chat.git"
+  },
+```
+
+In your app.js
+``` js
+var server = require('p1_tchat'),
+    config = require('./config'),
+    //shibboleth_connection = require('shibboleth_connection')
+    ;
+//server.connection = shibboleth_connection;
+server.run(config);
 ```
 
 ## Présentation
