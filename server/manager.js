@@ -66,7 +66,7 @@ function sendRoomList(socket, users, user, io){
     });
   }
 
-  Room.find({users: user.uid}, function(err, room_list){
+  Room.find({users: user._id}, function(err, room_list){
     if (err) return console.log(err);
     async.map(room_list, findData, function(err, result){
       if (err) return console.log(err);
@@ -75,8 +75,7 @@ function sendRoomList(socket, users, user, io){
   });
 }
 
-function addUserToChat(socket, users, user, fn, structures, io){
-
+function addUserToChat(socket, users, user, fn, io){
   var send_to_client = {
     'uid': user._id,
     'name': user.name,
@@ -94,8 +93,8 @@ function addUserToChat(socket, users, user, fn, structures, io){
 
   //sendPreferences(socket, users, user, io);
   //sendDirectionLists(socket, users, user, structures);
-  //sendFavList(socket, users, user, io);
-  //sendRoomList(socket, users, user, io);
+  sendFavList(socket, users, user, io);
+  sendRoomList(socket, users, user, io);
 
   var send_to_broadcast = {
     'uid': user._id,

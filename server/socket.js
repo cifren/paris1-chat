@@ -52,7 +52,7 @@ var socket = {
       // Event received when user change his status
       socket.on('change_status', function (userRecv) {
         if (users[socket.user_id]){
-          currentUser.update({name: userRecv.name}, {$set: {status: userRecv.status}}, function(err, updated_user){
+          UserModel.update({name: userRecv.name}, {$set: {status: userRecv.status}}, function(err, updated_user){
             if (err) {
               try { throw Error('Mongodb') } catch(err) { console.log(err); }
               return console.log(err);
@@ -116,7 +116,6 @@ var socket = {
               recv.text = preUrl + "<a target='_blank' href='" + matchedUrl[0] + "'>" + matchedUrl[0] + "</a>" + postUrl;
               recv.isLink = true;
             }
-            console.log('user id', users[socket.user_id]._id)
             var newMessage = new Message({
               room: room._id,
               owner: users[socket.user_id]._id,
@@ -229,7 +228,7 @@ var socket = {
 
       socket.on('manage_fav_list', function(recv) {
         if (users[socket.user_id]){
-          currentUser.findById(users[socket.user_id].id, function(err, user){
+          UserModel.findById(users[socket.user_id].id, function(err, user){
             if (err) return console.log(err);
             if (recv.action == 'add' && user.favorites.indexOf(recv.user) == -1){
               user.favorites.push(recv.user);

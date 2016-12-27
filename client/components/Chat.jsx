@@ -314,60 +314,27 @@ console.log(recv.user_props)
 
   updateLists(user, action){
     let notifyUser = true;
-    /*let userUid = String(user.uid);
-    user.directions.map((direction) => {
-      if (this.state.directionLists[direction]) {
-        if (this.state.user.affiliationType !== user.affiliationType || this.state.user.uid === userUid){
-          return;
-        }
-        if (user.listeRouge && user.affiliationType === "student"){
-          return;
-        }
-        switch (action){
-          case "disconnect":
-            if (this.state.directionLists[direction].list[userUid]){
-              notifyUser = (user.status !== "invisible") ? true : false;
-              delete this.state.directionLists[direction].list[userUid];
-              this.setState({directionLists: this.state.directionLists});
-            }
-            break;
-          case "status":
-            if (this.state.directionLists[direction].list[userUid]){
-              this.state.directionLists[direction].list[userUid].status = user.status;
-              this.setState({directionLists: this.state.directionLists});
-            }
-            break;
-          default:
-            notifyUser = (user.status !== "invisible") ? true : false;
-            this.state.directionLists[direction].list[userUid] = user;
-            this.setState({directionLists: this.state.directionLists});
-        }
-        if (notifyUser){
-          this.notifyUpdateList(user, action);
-          notifyUser = false;
-        }
-      }
-    });*/
-    /*if (this.state.favList[userUid]){
+    let userUid = String(user.uid);
+    if (this.state.favList[userUid]){
       switch (action){
         case "disconnect":
           notifyUser = (notifyUser && user.status !== "invisible") ? true : false;
-          //this.state.favList[userUid].status = 'offline';
+          this.state.favList[userUid].status = 'offline';
           this.setState({favList: this.state.favList});
           break;
         case "status":
-          //this.state.favList[userUid].status = user.status;
+          this.state.favList[userUid].status = user.status;
           this.setState({favList: this.state.favList});
         break;
         default:
           notifyUser = (notifyUser && user.status !== "invisible") ? true : false;
-          //this.state.favList[userUid] = user;
+          this.state.favList[userUid] = user;
           this.setState({favList: this.state.favList});
       }
       if (notifyUser){
         this.notifyUpdateList(user, action);
       }
-    }*/
+    }
     this.updateActiveRoomStatus(user);
     this.updateRoomListStatus(user);
   }
