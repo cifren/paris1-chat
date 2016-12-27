@@ -1,4 +1,5 @@
 var async = require('async'),
+    cookie = require('cookie');
 // Load schema
     User   = require('./models/user'),
     Preference = require('./models/preference'),
@@ -30,7 +31,6 @@ function getDirection(service, callback){
 function getVisibility(user, callback){
   Preference.findOne({user: user._id}, function(err, pref){
     if (err) return console.log(err);
-    user.visibility = pref.visibility;
     callback(err, user)
   });
 }
@@ -70,7 +70,7 @@ function sendRoomList(socket, users, user, io){
     if (err) return console.log(err);
     async.map(room_list, findData, function(err, result){
       if (err) return console.log(err);
-      io.to(users[socket.user].uid).emit('chat', JSON.stringify({'action': 'room_list', 'data': roomList}));
+      io.to(users[socket.user_id]._id).emit('chat', JSON.stringify({'action': 'room_list', 'data': roomList}));
     });
   });
 }
@@ -79,44 +79,27 @@ function addUserToChat(socket, users, user, fn, structures, io){
 
   var send_to_client = {
     'uid': user._id,
-    'user': user.user,
     'name': user.name,
     'status': user.status,
-    'service': user.affectationPrincipale,
-    'directions': user.directions,
-    'directionsLabels': user.directions.map(function(direction){
-      return structures[direction];
-    }),
     'favorites': user.favorites,
-    'affiliationType': user.affiliationType,
-    'listeRouge': user.supannListeRouge,
-    'modifyTimestamp': user.modifyTimestamp
+    'unlisted': user.unlisted
   };
 
   if (typeof fn !== 'undefined') {
     fn(JSON.stringify( {'login': 'successful', 'user_props': send_to_client}));
   }
+  socket.join(String(user._id));
+  socket.user_id = user._id;
+  users[socket.user_id] = user;
 
-  user.uid = user._id;
-
-  socket.join(String(user.uid));
-  socket.user = user.uid;
-  users[socket.user] = user;
-
-  sendPreferences(socket, users, user, io);
-  sendDirectionLists(socket, users, user, structures);
-  sendFavList(socket, users, user, io);
-  sendRoomList(socket, users, user, io);
+  //sendPreferences(socket, users, user, io);
+  //sendDirectionLists(socket, users, user, structures);
+  //sendFavList(socket, users, user, io);
+  //sendRoomList(socket, users, user, io);
 
   var send_to_broadcast = {
     'uid': user._id,
-    'user': user.user,
-    'name': user.name,
-    'status': user.status,
-    'directions': user.directions,
-    'affiliationType': user.affiliationType,
-    'listeRouge': user.supannListeRouge,
-    'modifyTimestamp': user.modifyTimestamp
+    'name': user.name
   };
 
   socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_connected', 'user': send_to_broadcast} ));
@@ -179,20 +162,24 @@ function sendFavList(socket, users, user, io){
         'modifyTimestamp': fav_list[i].modifyTimestamp
       };
     }
-    io.to(users[socket.user].uid).emit('chat', JSON.stringify({'action': 'fav_list', 'data': favList}));
+    io.to(users[socket.user_id]._id).emit('chat', JSON.stringify({'action': 'fav_list', 'data': favList}));
   });
 }
 
 function sendPreferences(socket, users, user, io){
   Preference.findOne({user: user._id}, function(err, pref){
     if (err) return console.log(err);
-    io.to(users[socket.user].uid).emit('chat', JSON.stringify({action: 'preferences', data: {
+    io.to(users[socket.user_id]._id).emit('chat', JSON.stringify({action: 'preferences', data: {
       sound: pref.sound,
       lang: pref.lang,
       notification: pref.notification,
       visibility: pref.visibility
     }}));
   });
+}
+
+function getCookieArray(cookieString){
+  return cookie.parse(cookieString);
 }
 
 module.exports = {
@@ -203,5 +190,6 @@ module.exports = {
   'sendRoomList': sendRoomList,
   'sendDirectionLists': sendDirectionLists,
   'sendPreferences': sendPreferences,
-  'sendFavList': sendFavList
+  'sendFavList': sendFavList,
+  'getCookieArray': getCookieArray
 }

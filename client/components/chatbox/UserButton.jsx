@@ -47,7 +47,7 @@ class UserButton extends React.Component {
   }
   render() {
     let lastMessage, affectationPrincipale;
-    let userUid = this.props.user.user.split("@")[0];
+    //let userUid = this.props.user.user.split("@")[0];
     if (this.props.lastMessage){
       let lastMessageContent = this.props.lastMessage.text;
       if (this.props.lastMessage.isLink){
@@ -68,7 +68,7 @@ class UserButton extends React.Component {
       <a onContextMenu={this.handleFavClick} onClick={this.handleClick} href="#">
         <div className="hover-container">
           <div className="button-container">
-            <Avatar uid={userUid} modifyTimestamp={this.props.user.modifyTimestamp}/>
+            {/* Avatar uid={userUid} modifyTimestamp={this.props.user.modifyTimestamp} */}
             <div className="user-container">
               <div className="user-name">
                 <div>{this.props.user.name}</div>

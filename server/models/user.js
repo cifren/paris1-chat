@@ -6,11 +6,6 @@ var mongoose = require('mongoose');
 var ObjectId = mongoose.Schema.Types.ObjectId;
 
 var UserSchema = mongoose.Schema({
-  user: {
-    type: String,
-    required: true,
-    trim: true
-  },
   name: {
     type: String,
     required: true
@@ -20,26 +15,15 @@ var UserSchema = mongoose.Schema({
     required: true,
     default: 'online'
   },
-  affectationPrincipale: {
-    type: String,
-    required: false
-  },
-  directions: [{
-    type: String,
+  group: [{
+      type: ObjectId,
+      ref: 'Group'
   }],
   favorites: [{
     type: ObjectId,
     ref: 'User'
   }],
-  eduPersonPrimaryAffiliation: {
-    type: String,
-    required: false
-  },
-  affiliationType: {
-    type: String,
-    required: true,
-  },
-  supannListeRouge: {
+  unlisted: {
     type: Boolean,
     required: false
   },

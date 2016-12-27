@@ -6,13 +6,18 @@ var http   = require('http'),
     fs       = require('fs'),
     path     = require('path'),
     url      = require('url'),
-    io = require('./socket.js'),
+    socket = require('./socket.js'),
     database = require('./database.js'),
-    connection = require('./connection.js')
+    default_connection = require('./connection.js'),
+    default_user_manager = require('./user_manager.js')
     ;
-    
+
+var container = {"connection" : default_connection, "user_manager": default_user_manager};
+socket.container = container;
+socket.init();
+
 var server = {
-  connection: connection,
+  connection: default_connection,
   run: function(config){
     var connection = this.connection
     var port = process.env.PORT || config.port;
@@ -55,10 +60,13 @@ var server = {
         });
       });
     });
-
-    io.attach(httpServer);
+    socket.io.attach(httpServer);
     database.run(httpServer, port);
   }
 };
+//DEV
+var config = require('./config');
+server.run(config);
+//DEV
 
 module.exports = server;

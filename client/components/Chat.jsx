@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom';
 import io from 'socket.io-client';
 import MsgBox from './msgbox/MsgBox.jsx';
 import ChatBox from './chatbox/ChatBox.jsx';
+import Cookie from 'js-cookie';
 
 class Chat extends React.Component {
 
@@ -65,13 +66,19 @@ class Chat extends React.Component {
 
   connectToServer(){
     this.socket = io.connect(config.server_url, {reconnect: true, path: config.websocket_path});
-    this.socket.emit('join', function (data) {
-      let recv = JSON.parse(data);
-      if (recv.login === 'successful'){
-        this.socketEventListener();
-        this.setState({user: recv.user_props});
-      }
-    }.bind(this));
+    this.socket.emit('join',
+      function (data) {
+        let recv = JSON.parse(data);
+        if (recv.login === 'successful'){
+          this.socketEventListener();
+          this.setState({user: recv.user_props});
+console.log(recv.user_props)
+          if(Cookie.get('userId') != recv.user_props.uid){
+            Cookie.set('userId', recv.user_props.uid);
+          }
+        }
+      }.bind(this)
+    );
   }
 
   setStatus(status){
@@ -307,7 +314,7 @@ class Chat extends React.Component {
 
   updateLists(user, action){
     let notifyUser = true;
-    let userUid = String(user.uid);
+    /*let userUid = String(user.uid);
     user.directions.map((direction) => {
       if (this.state.directionLists[direction]) {
         if (this.state.user.affiliationType !== user.affiliationType || this.state.user.uid === userUid){
@@ -340,27 +347,27 @@ class Chat extends React.Component {
           notifyUser = false;
         }
       }
-    });
-    if (this.state.favList[userUid]){
+    });*/
+    /*if (this.state.favList[userUid]){
       switch (action){
         case "disconnect":
           notifyUser = (notifyUser && user.status !== "invisible") ? true : false;
-          this.state.favList[userUid].status = 'offline';
+          //this.state.favList[userUid].status = 'offline';
           this.setState({favList: this.state.favList});
           break;
         case "status":
-          this.state.favList[userUid].status = user.status;
+          //this.state.favList[userUid].status = user.status;
           this.setState({favList: this.state.favList});
         break;
         default:
           notifyUser = (notifyUser && user.status !== "invisible") ? true : false;
-          this.state.favList[userUid] = user;
+          //this.state.favList[userUid] = user;
           this.setState({favList: this.state.favList});
       }
       if (notifyUser){
         this.notifyUpdateList(user, action);
       }
-    }
+    }*/
     this.updateActiveRoomStatus(user);
     this.updateRoomListStatus(user);
   }
