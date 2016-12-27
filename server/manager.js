@@ -91,7 +91,7 @@ function addUserToChat(socket, users, user, fn, io){
   socket.user_id = user._id;
   users[socket.user_id] = user;
 
-  //sendPreferences(socket, users, user, io);
+  sendPreferences(socket, users, user, io);
   //sendDirectionLists(socket, users, user, structures);
   sendFavList(socket, users, user, io);
   sendRoomList(socket, users, user, io);
@@ -102,6 +102,23 @@ function addUserToChat(socket, users, user, fn, io){
   };
 
   socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_connected', 'user': send_to_broadcast} ));
+}
+
+function catchMongodbErrorDisplay(err){
+  if (err) {
+    try { throw Error('Mongodb') } catch(err) { console.log(err); }
+    return console.log(err);
+  }
+}
+
+function createPreferences(user, emitChatCb){
+    var newPref = new Preference({
+      user: user._id
+    });
+    newPref.save(function(err){
+        if(err){return catchMongodbErrorDisplay(err)};
+      })
+      .then(emitChatCb);
 }
 
 function sendDirectionLists(socket, users, user, structures){
@@ -168,12 +185,21 @@ function sendFavList(socket, users, user, io){
 function sendPreferences(socket, users, user, io){
   Preference.findOne({user: user._id}, function(err, pref){
     if (err) return console.log(err);
-    io.to(users[socket.user_id]._id).emit('chat', JSON.stringify({action: 'preferences', data: {
-      sound: pref.sound,
-      lang: pref.lang,
-      notification: pref.notification,
-      visibility: pref.visibility
-    }}));
+
+    var emitChatCb = function(){
+      io.to(users[socket.user_id]._id).emit('chat', JSON.stringify({action: 'preferences', data: {
+        sound: pref.sound,
+        lang: pref.lang,
+        notification: pref.notification,
+        visibility: pref.visibility
+      }}));
+    };
+
+    if(pref){
+      emitChatCb();
+    } else {
+      createPreferences(user, emitChatCb);
+    }
   });
 }
 

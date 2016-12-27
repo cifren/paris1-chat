@@ -53,10 +53,7 @@ var socket = {
       socket.on('change_status', function (userRecv) {
         if (users[socket.user_id]){
           UserModel.update({name: userRecv.name}, {$set: {status: userRecv.status}}, function(err, updated_user){
-            if (err) {
-              try { throw Error('Mongodb') } catch(err) { console.log(err); }
-              return console.log(err);
-            }
+            if(err){return manager.catchMongodbErrorDisplay(err)};
             users[socket.user_id].status = userRecv.status;
             io.to(users[socket.user_id].id).emit('chat', JSON.stringify( {'action': 'set_status', 'data': users[socket.user_id].status} ));
 
