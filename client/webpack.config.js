@@ -33,13 +33,11 @@ module.exports = {
       }
     }),
     new CopyWebpackPlugin([
-        {
-            from: 'css/*',
-            to: './'
-        },{
-            from: '*.html',
-            to: './'
-        }
+        {from: 'css/*',to: './'},
+        {from: 'sounds/*',to: './'},
+        {from: 'favicon.ico',to: './'},
+        {from: 'tchat.png',to: './'},
+        {from: '*.html',to: './'}
     ]),
   ]
 };
