@@ -280,7 +280,8 @@ io.on('connection', function(socket){
     // Shibboleth auth using handshake's http headers
     recv.user = socket.handshake.headers.remote_user;
     recv.name = decodeURIComponent(escape(socket.handshake.headers.displayname));
-    recv.affectations = socket.handshake.headers.supannentiteaffectation.split(";") || ["guest"];
+    var affectation = socket.handshake.headers.supannentiteaffectation ? socket.handshake.headers.supannentiteaffectation.split(";") : undefined;
+    recv.affectations = affectation || ["guest"];
     recv.affectationPrincipale = socket.handshake.headers.supannentiteaffectationprincipale ||
                                  recv.affectations && recv.affectations[0] ||
                                  "guest";
