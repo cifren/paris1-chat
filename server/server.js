@@ -28,7 +28,13 @@ var server = {
       var uri = urlParts.pathname;
       if (uri === "/login") uri = "/";
       var filename = path.join(__dirname, "../client/build/" + uri);
+
+      // Add login logic if connection need it
       connection.login(req, res, urlParts, config, uri);
+      // Terminate the request, if connection need it
+      if(connection.end){
+        return ;
+      }
 
       fs.stat(filename, function(err, stat) {
         if (err && err.code === "ENOENT") {
@@ -65,7 +71,14 @@ var server = {
   }
 };
 //DEV
-var config = require('./config');
+var config = require('./config'),
+    shi_con = require('shibboleth_connection'),
+    ldap_usr = require('ldap_user'),
+    group = require('./module/group/app.js')
+    ;
+//server.container.connection = shi_con;
+server.container.user_manager = ldap_usr;
+server.container.user_model = ldap_usr.user_model;
 server.run(config);
 //DEV
 
