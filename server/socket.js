@@ -1,18 +1,27 @@
 var ioG       = require('socket.io')({path: "/sockets"}),
     async    = require('async'),
     config = require('./config'),
-    manager = require('./manager.js')
+    manager = require('./manager.js'),
+    EventEmitter = require('events');
     ;
 
 var structures = {};
 var users = {}, files = {}, navigating_users= {};
 
-var socket = {
+var socketContainer = {
+  eventEmitter: new EventEmitter(),
   container: undefined,
   io: ioG,
   user_manager: undefined,
+  config: config,
   init: function(){
-    var io = this.io;
+    this.socketEvent();
+    // Allow to add new plugins and run their init for example all at the same time
+    this.eventEmitter.emit('plugin', {});
+  },
+  socketEvent: function(){
+    var eventEmitter = this.eventEmitter;
+    var io = this.io = ioG;
     var user_manager = this.user_manager = this.container.user_manager;
     var UserModel = user_manager.getUserModel();
     var PreferenceModel = this.container.preference_model;
@@ -259,6 +268,8 @@ var socket = {
                   'status': users[results[usr]._id] && users[results[usr]._id].status || "offline",
                   'unlisted': results[usr].unlisted
                 }
+                // Allow to edit the list before sending it
+                eventEmitter.emit('search', {'user_list': users_found, 'current_user': users[socket.user_id]});
               }
               if (typeof fn !== 'undefined'){
                 fn(JSON.stringify({successful: true, users_found}))
@@ -421,7 +432,6 @@ var socket = {
       });
     });
   }
-
 }
 
-module.exports = socket;
+module.exports = socketContainer;
