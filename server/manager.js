@@ -1,10 +1,10 @@
 var async = require('async'),
-    cookie = require('cookie');
+    cookie = require('cookie'),
 // Load schema
-    User   = require('./models/user'),
-    Preference = require('./models/preference'),
-    Message    = require('./models/message'),
-    Room       = require('./models/room');
+    PreferenceModel = require('./model/preference'),
+    MessageModel    = require('./model/message'),
+    RoomModel       = require('./model/room');
+    ;
 
 function createStructures(data, structures){
   for (var str in data){
@@ -29,23 +29,22 @@ function getDirection(service, callback){
 }
 
 function getVisibility(user, callback){
-  Preference.findOne({user: user._id}, function(err, pref){
+  PreferenceModel.findOne({user: user._id}, function(err, pref){
     if (err) return console.log(err);
     callback(err, user)
   });
 }
 
-function sendRoomList(socket, users, user, io){
+function sendRoomList(socket, users, user, io, UserModel){
   var roomList = {};
-
   var findData = function(room, callback){
     async.parallel({
       findPenpal: function(cb){
         var penpalIndice = (String(room.users[0]) === String(user._id)) ? 1 : 0;
-        User.findById(room.users[penpalIndice]).exec(cb);
+        UserModel.findById(room.users[penpalIndice]).exec(cb);
       },
       findLastMessage: function(cb){
-        Message.findOne({room: room._id}).sort({posted: -1}).exec(cb);
+        MessageModel.findOne({room: room._id}).sort({posted: -1}).exec(cb);
       }
     },
     function(err, result){
@@ -66,7 +65,7 @@ function sendRoomList(socket, users, user, io){
     });
   }
 
-  Room.find({users: user._id}, function(err, room_list){
+  RoomModel.find({users: user._id}, function(err, room_list){
     if (err) return console.log(err);
     async.map(room_list, findData, function(err, result){
       if (err) return console.log(err);
@@ -75,7 +74,7 @@ function sendRoomList(socket, users, user, io){
   });
 }
 
-function addUserToChat(socket, users, user, fn, io){
+function addUserToChat(socket, users, user, fn, io, UserModel){
   var send_to_client = {
     'uid': user._id,
     'name': user.name,
@@ -93,8 +92,8 @@ function addUserToChat(socket, users, user, fn, io){
 
   sendPreferences(socket, users, user, io);
   //sendDirectionLists(socket, users, user, structures);
-  sendFavList(socket, users, user, io);
-  sendRoomList(socket, users, user, io);
+  sendFavList(socket, users, user, io, UserModel);
+  sendRoomList(socket, users, user, io, UserModel);
 
   var send_to_broadcast = {
     'uid': user._id,
@@ -112,7 +111,7 @@ function catchMongodbErrorDisplay(err){
 }
 
 function createPreferences(user, emitChatCb){
-    var newPref = new Preference({
+    var newPref = new PreferenceModel({
       user: user._id
     });
     newPref.save(function(err){
@@ -121,10 +120,10 @@ function createPreferences(user, emitChatCb){
       .then(emitChatCb);
 }
 
-function sendDirectionLists(socket, users, user, structures){
+function sendDirectionLists(socket, users, user, structures, UserModel){
   var directionLists = {};
   function findUsersByDirection(direction, callback){
-    User.find({directions: direction, affiliationType: user.affiliationType}, function(err, user_list){
+    UserModel.find({directions: direction, affiliationType: user.affiliationType}, function(err, user_list){
       if (err) return console.log(err);
       var directionList = {name: structures[direction], code: direction, list: {}};
       for (var i in user_list){
@@ -160,9 +159,10 @@ function sendDirectionLists(socket, users, user, structures){
   });
 }
 
-function sendFavList(socket, users, user, io){
+function sendFavList(socket, users, user, io, UserModel){
+
   var favList = {};
-  User.find({_id: {$in: user.favorites}}, function(err, fav_list){
+  UserModel.find({_id: {$in: user.favorites}}, function(err, fav_list){
     if (err) return console.log(err);
     for (var i in fav_list){
       if (fav_list[i].supannListeRouge && user.affiliationType !== "staff"){
@@ -178,12 +178,13 @@ function sendFavList(socket, users, user, io){
         'modifyTimestamp': fav_list[i].modifyTimestamp
       };
     }
+
     io.to(users[socket.user_id]._id).emit('chat', JSON.stringify({'action': 'fav_list', 'data': favList}));
   });
 }
 
 function sendPreferences(socket, users, user, io){
-  Preference.findOne({user: user._id}, function(err, pref){
+  PreferenceModel.findOne({user: user._id}, function(err, pref){
     if (err) return console.log(err);
 
     var emitChatCb = function(){

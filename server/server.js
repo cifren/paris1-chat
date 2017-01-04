@@ -12,14 +12,30 @@ var http   = require('http'),
     default_user_manager = require('./user_manager.js')
     ;
 
-var container = {"connection" : default_connection, "user_manager": default_user_manager};
-socket.container = container;
-socket.init();
+// Load schema
+var DefaultPreferenceModel = require('./model/preference'),
+    DefaultMessageModel    = require('./model/message'),
+    DefaultRoomModel       = require('./model/room');
+
+var container = {
+  database_manager: database,
+  // might be overwritten
+  "connection" : default_connection,
+  // might be overwritten
+  "user_manager": default_user_manager,
+  //models
+  "preference_model": DefaultPreferenceModel,
+  "room_model": DefaultRoomModel,
+  "message_model": DefaultMessageModel,
+};
 
 var server = {
-  connection: default_connection,
+  container: container,
   run: function(config){
-    var connection = this.connection
+    socket.container = container;
+    socket.init();
+
+    var connection = this.container.connection
     var port = process.env.PORT || config.port;
     // Launch server
     var httpServer = http.createServer(function(req, res){

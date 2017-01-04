@@ -1,11 +1,9 @@
 // Model user
-
 'use strict';
-
 var mongoose = require('mongoose');
 var ObjectId = mongoose.Schema.Types.ObjectId;
 
-var UserSchema = mongoose.Schema({
+var jsonModel = {
   name: {
     type: String,
     required: true
@@ -15,10 +13,6 @@ var UserSchema = mongoose.Schema({
     required: true,
     default: 'online'
   },
-  group: [{
-      type: ObjectId,
-      ref: 'Group'
-  }],
   favorites: [{
     type: ObjectId,
     ref: 'User'
@@ -31,6 +25,6 @@ var UserSchema = mongoose.Schema({
     type: String,
     required: false
   }
-});
+};
 
-module.exports = mongoose.model('User', UserSchema);
+module.exports = jsonModel;

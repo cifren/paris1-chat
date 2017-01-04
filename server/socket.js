@@ -5,14 +5,6 @@ var ioG       = require('socket.io')({path: "/sockets"}),
     ;
 
 var structures = {};
-
-// Load schema
-var Preference = require('./models/preference'),
-    Message    = require('./models/message'),
-    Room       = require('./models/room');
-
-var UserModel = require('./models/user');
-var currentUser;
 var users = {}, files = {}, navigating_users= {};
 
 var socket = {
@@ -22,6 +14,10 @@ var socket = {
   init: function(){
     var io = this.io;
     var user_manager = this.user_manager = this.container.user_manager;
+    var UserModel = user_manager.getUserModel();
+    var PreferenceModel = this.container.preference_model;
+    var MessageModel = this.container.message_model;
+    var RoomModel = this.container.room_model;
 
     // socket connection
     this.io.on('connection', function(socket){
@@ -41,11 +37,11 @@ var socket = {
 
       // Event received by new user
       socket.on('join', function (fn) {
-        user_manager.setCookies(manager.getCookieArray(socket.handshake.headers.cookie));
+        user_manager.init(socket);
+        // retrieve or create a user
         user_manager
           .findUser(function(user){
-            currentUser = user;
-            manager.addUserToChat(socket, users, user, fn, io);
+            manager.addUserToChat(socket, users, user, fn, io, UserModel);
           });
       });
 
@@ -69,7 +65,7 @@ var socket = {
       });
 
       socket.on('message_viewed', function(recv){
-        Message.findById(recv._id, function(err, message){
+        MessageModel.findById(recv._id, function(err, message){
           if (users[socket.user_id].status === "invisible"){
             return;
           }
@@ -94,7 +90,7 @@ var socket = {
 
       // Event received when user send message to another
       socket.on('send_message', function (recv) {
-        Room.findById(recv.room, function(err, room){
+        RoomModel.findById(recv.room, function(err, room){
           if (err) return console.log(err);
           if (!room) {
             socket.emit('custom_error', { message: 'Error, the message wont be save' });
@@ -113,7 +109,7 @@ var socket = {
               recv.text = preUrl + "<a target='_blank' href='" + matchedUrl[0] + "'>" + matchedUrl[0] + "</a>" + postUrl;
               recv.isLink = true;
             }
-            var newMessage = new Message({
+            var newMessage = new MessageModel({
               room: room._id,
               owner: users[socket.user_id]._id,
               text: recv.text,
@@ -190,17 +186,17 @@ var socket = {
 
       socket.on('load_room', function(recv, fn) {
         //Charge une room quand on clique sur un utilisateur
-        Room.findOne({users: recv}, function(err, room){
+        RoomModel.findOne({users: recv}, function(err, room){
           if(err) return console.log(err);
           if(!room){
-            var newRoom = new Room({users: recv}).save(function(err, newRoom){
+            var newRoom = new RoomModel({users: recv}).save(function(err, newRoom){
               if (err) return console.log(err);
               if (typeof fn !== 'undefined')
                 fn(JSON.stringify({'room': newRoom._id, 'messages': []}));
             });
           }
           else {
-            Message.find({room: room._id}).sort({posted: 1}).exec(function(err, messages){
+            MessageModel.find({room: room._id}).sort({posted: 1}).exec(function(err, messages){
               if (err) return console.log(err);
               if (typeof fn !== 'undefined'){
                 fn(JSON.stringify({'room': room._id, 'messages': messages}));
@@ -236,7 +232,7 @@ var socket = {
             }
             user.save(function(err, updated_user){
               if (err) return console.log(err);
-              manager.sendFavList(socket, users, updated_user, io);
+              manager.sendFavList(socket, users, updated_user, io, UserModel);
             });
           });
         }
@@ -274,7 +270,7 @@ var socket = {
 
       socket.on('save_pref', function(recv){
         if (users[socket.user_id]){
-          Preference.findOne({user: socket.user_id}, function(err, pref){
+          PreferenceModel.findOne({user: socket.user_id}, function(err, pref){
               if (err) return console.log(err);
               pref.sound = recv.sound;
               pref.lang = recv.lang;
@@ -349,7 +345,7 @@ var socket = {
       });
 
       socket.on('update_roomlist', function(recv, fn){
-        Room.findById(recv.room, function(err, room){
+        RoomModel.findById(recv.room, function(err, room){
           if (err) return console.log(err);
           var penpalUid;
           if (String(recv.owner) === String(socket.user_id)){
@@ -393,13 +389,13 @@ var socket = {
       });
 
       socket.on('check_room_not_empty', function(recv, fn){
-        Room.findOne({users: recv}, function(err, room){
+        RoomModel.findOne({users: recv}, function(err, room){
           if(err) return console.log(err);
           if (!room){
             fn(false);
           }
           else {
-            Message.find({room: room._id}).exec(function(err, messages){
+            MessageModel.find({room: room._id}).exec(function(err, messages){
               if (err) return console.log(err);
               if (messages.length > 0){
                 fn(room._id);
@@ -413,7 +409,7 @@ var socket = {
       });
 
       socket.on('del_conversation', function(recv){
-        Message.remove({room: recv.room}).exec(function(err, res){
+        MessageModel.remove({room: recv.room}).exec(function(err, res){
           if(err) return console.log(err);
           if (res.result && res.result.ok){
             io.to(users[socket.user_id].id).emit('chat', JSON.stringify({'action': 'update_del_conversation', 'data': recv.room}));
