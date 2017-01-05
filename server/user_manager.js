@@ -3,25 +3,33 @@ var _ = require('lodash'),
     database_manager = require('./database'),
     json_user_model = require('./model/user'),
     message_model = require('./model/message')
+    socketContainer = require('./socket'),
+    myEmitter = socketContainer.eventEmitter;
     ;
 
 var user_manager = {
-  _cookies: {},
+  _cookies: undefined,
+  _socketContainer: undefined,
+  _eventEmitter: undefined,
   user_model: undefined,
   json_user_model: undefined,
-  init: function(socket){
-    this._cookies = manager.getCookieArray(socket.handshake.headers.cookie);
+  init: function(socketContainer){
+    this._socketContainer = socketContainer;
+    this._eventEmitter = this._socketContainer.eventEmitter;
   },
   findUser: function(callback){
     var userIdCookie = this._loadUserFromCookie();
     var user = this._getUserFromDatabase(userIdCookie);
+    var _this = this;
     user
       .then(function(user){
         if(!user){
-          user_manager._createUser().then(callback);
+          user_manager._createUser()
+            .then(callback)
+            .then(function(user){_this._postCreate(user)});
         } else {
-          user = user_manager._refreshUserValue(user);
-          callback(user)
+          _this._postLoad(user);
+          callback(user);
         }
       }).catch(function(error) {
         console.log("Failed!", error);
@@ -33,14 +41,10 @@ var user_manager = {
                 console.log("Failed!", error);
               });
   },
-  // refresh user on a load
-  _refreshUserValue: function(user){
-    return user;
-  },
   _createUser: function(cb){
     var UserModel = this.getUserModel();
     var newUser = new UserModel(this._newUserValue());
-
+    this._preCreate(newUser);
     return newUser
       .save(function(err, newUser) {
         if (err) return console.log(err);
@@ -54,8 +58,12 @@ var user_manager = {
     };
   },
   _loadUserFromCookie: function(){
+    console.log()
     if(!this._cookies){
-      console.log('Cookies are not set');
+      this._cookies = manager.getCookieArray(this._socketContainer.socket.handshake.headers.cookie);
+      if(!this._cookies){
+        console.log('Cookies are not set');
+      }
     }
     return this._cookies.userId;
   },
@@ -77,7 +85,21 @@ var user_manager = {
       this.user_model = database_manager.getModel('User');
     }
     return this.user_model;
-  }
+  },
+  _preCreate:function(user){
+    this._eventEmitter.emit('user_manager_precreate', {user: user});
+  },
+  _postCreate:function(user){
+    this._eventEmitter.emit('user_manager_postcreate', {user: user});
+  },
+  _postLoad:function(user){
+    this._eventEmitter.emit('user_manager_postload', {user: user});
+  },
 }
+
+// Activate init function when socketContainer is ready
+myEmitter.on('plugin', (event) => {
+  user_manager.init(event.socketContainer);
+});
 
 module.exports = user_manager;

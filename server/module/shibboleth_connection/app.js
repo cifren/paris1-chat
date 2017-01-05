@@ -8,8 +8,10 @@ var connection = {
       if (urlParts.query.idpId){
         idpId = "providerId=" + urlParts.query.idpId;
       }
+      // files requested
       var target = qs.escape("target=" + config.host + uri);
       var urlForceIdp = config.shib_login + "?" +  idpId + "&" + target;
+
       // redirect to shibboleth for login
       res.writeHead(302, {"Location": urlForceIdp});
       res.end();

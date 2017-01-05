@@ -14,10 +14,11 @@ var socketContainer = {
   io: ioG,
   user_manager: undefined,
   config: config,
+  socket: undefined,
   init: function(){
     this.socketEvent();
     // Allow to add new plugins and run their init for example all at the same time
-    this.eventEmitter.emit('plugin', {});
+    this.eventEmitter.emit('plugin', {socketContainer: this});
   },
   socketEvent: function(){
     var eventEmitter = this.eventEmitter;
@@ -27,9 +28,10 @@ var socketContainer = {
     var PreferenceModel = this.container.preference_model;
     var MessageModel = this.container.message_model;
     var RoomModel = this.container.room_model;
-
+    var _this = this;
     // socket connection
     this.io.on('connection', function(socket){
+      _this.socket = socket;
       var onevent = socket.onevent;
 
       // DEBUG
@@ -46,7 +48,6 @@ var socketContainer = {
 
       // Event received by new user
       socket.on('join', function (fn) {
-        user_manager.init(socket);
         // retrieve or create a user
         user_manager
           .findUser(function(user){

@@ -47,7 +47,7 @@ var server = {
 
       // Add login logic if connection need it
       connection.login(req, res, urlParts, config, uri);
-      // Terminate the request, if connection need it
+      // Terminate the request, if connection needs it
       if(connection.end){
         return ;
       }
@@ -94,7 +94,7 @@ var config = require('./config'),
     ;
 //server.container.connection = shi_con;
 server.container.user_manager = ldap_usr;
-server.container.user_model = ldap_usr.user_model;
+
 server.run(config);
 //DEV
 

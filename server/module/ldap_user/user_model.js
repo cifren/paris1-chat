@@ -8,6 +8,10 @@ var jsonModel = {
     type: String,
     required: true
   },
+  ldapId: {
+    type: String,
+    required: true
+  },
   status: {
     type: String,
     required: true,

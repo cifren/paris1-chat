@@ -52,6 +52,7 @@ var group = {
   }
 }
 
+// Activate init function when socket is ready
 myEmitter.on('plugin', (event) => {
   group.init();
 });
