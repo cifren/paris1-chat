@@ -5,6 +5,7 @@
   "main": "server/server.js",
   "scripts": {
     "build-client-watch": "cd ./client && webpack --progress --colors --profile --watch",
+    "build-client-prod": "cd ./client && NODE_ENV=production ../node_modules/webpack/bin/webpack.js -p --progress --colors --profile",
     "build-client": "cd ./client && webpack --progress --colors --profile",
     "dev-client": "cd ./client && webpack-dev-server --progress --colors",
     "dev-server": "nodemon --debug server/server.js",
