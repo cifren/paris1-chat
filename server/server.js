@@ -1,4 +1,4 @@
-'use strict';
+'cd tes use strict';
 
 // Configuration
 var http   = require('http'),

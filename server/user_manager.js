@@ -95,6 +95,11 @@ var user_manager = {
   _postLoad:function(user){
     this._eventEmitter.emit('user_manager_postload', {user: user});
   },
+  saveUser: function(user){
+    return user.save(function(err, newUser) {
+      if (err) return console.log(err);
+    });
+  }
 }
 
 // Activate init function when socketContainer is ready

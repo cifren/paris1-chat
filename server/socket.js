@@ -269,7 +269,7 @@ var socketContainer = {
                   'status': users[results[usr]._id] && users[results[usr]._id].status || "offline",
                   'unlisted': results[usr].unlisted
                 }
-                // Allow to edit the list before sending it
+                // Allow to edit the list before sending it, won't support promises into 'on'
                 eventEmitter.emit('search', {'user_list': users_found, 'current_user': users[socket.user_id]});
               }
               if (typeof fn !== 'undefined'){

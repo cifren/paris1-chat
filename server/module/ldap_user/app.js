@@ -14,15 +14,37 @@ ldap_usr.init = function(socketContainer){
 
 ldap_usr.listeners = function(){
   this._eventEmitter.on('user_manager_precreate', (event) => {
+    console.log('user_manager_precreate')
     // update user
     this.updateUserFromLdap(event.user);
   });
   this._eventEmitter.on('user_manager_postload', (event) => {
+    console.log('user_manager_postload')
+    var user = event.user;
+    console.log(user)
     // update user
     this.updateUserFromLdap(event.user);
+    console.log('before save')
     // save information in database
-    // user.save();
+    this.saveUser();
+
+    console.log('after save')
   });
+};
+
+ldap_usr.saveUser = function*(user){
+  console.log('saveUser b')
+    console.log('saveUser 1.0')
+  try {
+    console.log('saveUser 1')
+    yield user.save(function(){
+      console.log('saving')
+    });
+      console.log('saveUser 2')
+  } catch(e) {
+    error = e;
+  }
+  console.log('saveUser a')
 };
 
 ldap_usr.updateUserFromLdap = function(user) {
