@@ -40,14 +40,14 @@ ldap.bind({
   password: config.ldap.password
   },
   function(err){
-    if (err) return console.log(err);
+    if (err) return catchErrorDisplay(err);
     ldap.search({}, function(err, data){
-      if (err) return console.log(err);
+      if (err) return catchErrorDisplay(err);
       createStructures(data);
       // Update structures every hours
       setInterval(function(){
         ldap.search({}, function(err, data){
-          if (err) return console.log(err);
+          if (err) return catchErrorDisplay(err);
           createStructures(data);
         });
       }, 3600000);
@@ -66,7 +66,7 @@ function getDirection(service, callback){
     return callback(null, "guest");
   }
   ldap.search({filter: "(supannCodeEntite=" + service + ")"}, function(err, data){
-    if (err) return console.log(err);
+    if (err) return catchErrorDisplay(err);
     if (!data[0].up1Flags || data[0].up1Flags.indexOf("included") === -1){
       return callback(err, service);
     }
@@ -84,7 +84,7 @@ function getAffiliationType(affiliation){
 
 function getVisibility(user, callback){
   Preference.findOne({user: user._id}, function(err, pref){
-    if (err) return console.log(err);
+    if (err) return catchErrorDisplay(err);
     user.visibility = pref.visibility;
     callback(err, user)
   });
@@ -101,7 +101,7 @@ function getLDAPAttributes(eppn, callback){
     filter: "(eduPersonPrincipalName=" + eppn + ")",
     attrs: config.ldap.attrsPeople
   }, function(err, data){
-    if (err) return console.log(err);
+    if (err) return catchErrorDisplay(err);
     var results = {
       eduPersonPrimaryAffiliation: data[0] && data[0].eduPersonPrimaryAffiliation[0],
       supannListeRouge: data[0] && (data[0].supannListeRouge[0] === "TRUE") ? true : false,
@@ -115,7 +115,7 @@ function sendDirectionLists(socket, user){
   var directionLists = {};
   function findUsersByDirection(direction, callback){
     User.find({directions: direction, affiliationType: user.affiliationType}, function(err, user_list){
-      if (err) return console.log(err);
+      if (err) return catchErrorDisplay(err);
       var directionList = {name: structures[direction], code: direction, list: {}};
       for (var i in user_list){
         if (String(user.uid) === String(user_list[i]._id)){
@@ -153,7 +153,7 @@ function sendDirectionLists(socket, user){
 function sendFavList(socket, user){
   var favList = {};
   User.find({_id: {$in: user.favorites}}, function(err, fav_list){
-    if (err) return console.log(err);
+    if (err) return catchErrorDisplay(err);
     for (var i in fav_list){
       if (fav_list[i].supannListeRouge && user.affiliationType !== "staff"){
         user.favorites.splice(user.favorites.indexOf(fav_list[i]._id), 1);
@@ -204,9 +204,9 @@ function sendRoomList(socket, user){
   }
 
   Room.find({users: user.uid}, function(err, room_list){
-    if (err) return console.log(err);
+    if (err) return catchErrorDisplay(err);
     async.map(room_list, findData, function(err, result){
-      if (err) return console.log(err);
+      if (err) return catchErrorDisplay(err);
       io.to(users[socket.user].uid).emit('chat', JSON.stringify({'action': 'room_list', 'data': roomList}));
     });
   });
@@ -214,7 +214,7 @@ function sendRoomList(socket, user){
 
 function sendPreferences(socket, user){
   Preference.findOne({user: user._id}, function(err, pref){
-    if (err) return console.log(err);
+    if (err) return catchErrorDisplay(err);
     io.to(users[socket.user].uid).emit('chat', JSON.stringify({action: 'preferences', data: {
       sound: pref.sound,
       lang: pref.lang,
@@ -292,7 +292,7 @@ io.on('connection', function(socket){
     }
 
     User.findOne({user: recv.user}, function(err, user){
-      if (err) return console.log(err);
+      if (err) return catchErrorDisplay(err);
 
       async.parallel({
         getDirection: function(callback){return async.map(recv.affectations, getDirection, callback)},
@@ -310,7 +310,7 @@ io.on('connection', function(socket){
               modifyTimestamp: results.getLDAPAttributes.modifyTimestamp
           });
           newUser.save(function(err, newUser) {
-            if (err) return console.log(err);
+            if (err) return catchErrorDisplay(err);
             var visibility;
             if (staffAffiliation.indexOf(newUser.eduPersonPrimaryAffiliation) >= 0){
               visibility = "staff";
@@ -323,7 +323,7 @@ io.on('connection', function(socket){
               visibility: visibility
             });
             newPref.save(function(err, newPref){
-              if (err) return console.log(err);
+              if (err) return catchErrorDisplay(err);
               addUserToChat(socket, newUser, fn);
             });
           });
@@ -338,7 +338,7 @@ io.on('connection', function(socket){
           user.supannListeRouge = results.getLDAPAttributes.supannListeRouge;
           user.modifyTimestamp = results.getLDAPAttributes.modifyTimestamp;
           user.save(function(err, user){
-            if(err) return console.log(err);
+            if(err) return catchErrorDisplay(err);
             addUserToChat(socket, user, fn);
           });
         }
@@ -350,7 +350,7 @@ io.on('connection', function(socket){
   socket.on('change_status', function (recv) {
     if (users[socket.user]){
       User.update({_id: recv.uid}, {$set: {status: recv.status}}, function(err, updated_user){
-        if (err) return console.log(err);
+        if (err) return catchErrorDisplay(err);
         users[socket.user].status = recv.status;
         io.to(users[socket.user].uid).emit('chat', JSON.stringify( {'action': 'set_status', 'data': users[socket.user].status} ));
         socket.broadcast.emit('chat', JSON.stringify( {'action': 'user_changed_status', 'user': {'uid': users[socket.user].uid, 'name': users[socket.user].name, 'directions': users[socket.user].directions, 'affiliationType': users[socket.user].affiliationType, 'status': users[socket.user].status}}));
@@ -365,7 +365,7 @@ io.on('connection', function(socket){
       }
       message.viewed = true;
       message.save(function(err){
-        if (err) return console.log(err);
+        if (err) return catchErrorDisplay(err);
         io.to(users[socket.user].uid).emit('chat', JSON.stringify({'action': 'update_badge', 'data': message.room}));
         if (users[message.owner] && users[message.owner].uid){
           io.to(users[message.owner].uid).emit('chat', JSON.stringify({'action': 'message_viewed', 'data': message}));
@@ -385,7 +385,7 @@ io.on('connection', function(socket){
   // Event received when user send message to another
   socket.on('send_message', function (recv) {
     Room.findById(recv.room, function(err, room){
-      if (err) return console.log(err);
+      if (err) return catchErrorDisplay(err);
       if (!room) {
         socket.emit('custom_error', { message: 'Error, the message wont be save' });
       }
@@ -409,7 +409,7 @@ io.on('connection', function(socket){
           text: recv.text,
           isLink: recv.isLink
         }).save(function(err, newMessage){
-          if (err) return console.log(err);
+          if (err) return catchErrorDisplay(err);
           io.to(users[socket.user].uid).emit('chat', JSON.stringify( {'action': 'message', 'data': newMessage}));
           if (typeof users[recv.receiver] !== 'undefined'){
             io.to(users[recv.receiver].uid).emit('chat', JSON.stringify( {'action': 'message', 'data': newMessage}));
@@ -481,17 +481,17 @@ io.on('connection', function(socket){
   socket.on('load_room', function(recv, fn) {
     //Charge une room quand on clique sur un utilisateur
     Room.findOne({users: recv}, function(err, room){
-      if(err) return console.log(err);
+      if(err) return catchErrorDisplay(err);
       if(!room){
         var newRoom = new Room({users: recv}).save(function(err, newRoom){
-          if (err) return console.log(err);
+          if (err) return catchErrorDisplay(err);
           if (typeof fn !== 'undefined')
             fn(JSON.stringify({'room': newRoom._id, 'messages': []}));
         });
       }
       else {
         Message.find({room: room._id}).sort({posted: 1}).exec(function(err, messages){
-          if (err) return console.log(err);
+          if (err) return catchErrorDisplay(err);
           if (typeof fn !== 'undefined'){
             fn(JSON.stringify({'room': room._id, 'messages': messages}));
           }
@@ -500,7 +500,7 @@ io.on('connection', function(socket){
             if (!lastMessage.viewed && String(lastMessage.owner) !== String(users[socket.user].uid)){
               lastMessage.viewed = true;
               lastMessage.save(function(err, updatedMessage){
-                if (err) return console.log(err);
+                if (err) return catchErrorDisplay(err);
                 io.to(users[socket.user].uid).emit('chat', JSON.stringify({'action': 'update_badge', 'data': room._id}));
                 if (users[updatedMessage.owner] && users[updatedMessage.owner].uid){
                   io.to(users[updatedMessage.owner].uid).emit('chat', JSON.stringify({'action': 'message_viewed', 'data': updatedMessage}));
@@ -516,7 +516,7 @@ io.on('connection', function(socket){
   socket.on('manage_fav_list', function(recv) {
     if (users[socket.user]){
       User.findById(users[socket.user].uid, function(err, user){
-        if (err) return console.log(err);
+        if (err) return catchErrorDisplay(err);
         if (recv.action == 'add' && user.favorites.indexOf(recv.user) == -1){
           user.favorites.push(recv.user);
         }
@@ -525,7 +525,7 @@ io.on('connection', function(socket){
           user.favorites.splice(index, 1);
         }
         user.save(function(err, updated_user){
-          if (err) return console.log(err);
+          if (err) return catchErrorDisplay(err);
           sendFavList(socket, updated_user);
         });
       });
@@ -537,7 +537,7 @@ io.on('connection', function(socket){
       var searchPattern = recv.replace(/\W/g, ".");
       var strRegex = "(^" + searchPattern + ".*)|(\ " + searchPattern + ".*(\ " + searchPattern + ".*)*$)";
       User.find({'name': {'$regex': new RegExp(strRegex, "gim")}}, function(err, results){
-        if (err) return console.log(err);
+        if (err) return catchErrorDisplay(err);
         var users_found = {};
         async.map(results, getVisibility, function(err, results){
           for (var usr in results){
@@ -591,13 +591,13 @@ io.on('connection', function(socket){
   socket.on('save_pref', function(recv){
     if (users[socket.user]){
       Preference.findOne({user: socket.user}, function(err, pref){
-          if (err) return console.log(err);
+          if (err) return catchErrorDisplay(err);
           pref.sound = recv.sound;
           pref.lang = recv.lang;
           pref.notification = recv.notification;
           pref.visibility = recv.visibility;
           pref.save(function(err, updatedPref){
-            if (err) return console.log(err);
+            if (err) return catchErrorDisplay(err);
             io.to(users[socket.user].uid).emit('chat', JSON.stringify({'action': 'preferences', 'data': {sound: updatedPref.sound, lang: updatedPref.lang, notification: updatedPref.notification, visibility: updatedPref.visibility}}));
           });
       });
@@ -615,7 +615,7 @@ io.on('connection', function(socket){
     files[recv.name].path = path.join(upload_dir, recv.name);
     var place = 0;
     fs.open(files[recv.name].path, "a", "0755", function(err, fd){
-      if (err) return console.log(err);
+      if (err) return catchErrorDisplay(err);
       files[recv.name].handler = fd;
       socket.emit("chat", JSON.stringify({'action': 'send_more_data', 'data': {"place": place, "progress": files[recv.name].progress}}));
     })
@@ -623,17 +623,21 @@ io.on('connection', function(socket){
 
   socket.on('upload_file', function(recv, fn) {
     files[recv.name].progress += recv.data.length;
-    files[recv.name].data += recv.data;
+    if(files[recv.name].data == undefined){
+        files[recv.name].data = recv.data;
+    }else{
+        files[recv.name].data += recv.data;
+    }
     // If upload completed, send the file to Filex
     if (files[recv.name].progress === files[recv.name].size){
       fs.write(files[recv.name].handler, files[recv.name].data, null, 'Binary', function(err, writen){
-      if (err) return console.log(err);
+      if (err) return catchErrorDisplay(err);
         var formData = {
           owner: users[recv.owner] && users[recv.owner].user || recv.owner,
           upload: fs.createReadStream(files[recv.name].path)
         };
         request.post({url: config.upload_server, formData: formData}, function(err, res, body){
-          if (err) return console.log(err);
+          if (err) return catchErrorDisplay(err);
           if (body.match(/https:\/\/filex(-test)\.univ-paris1\.fr\/get\?k=[0-9A-za-z]+/)){
             var link = "<a href='" + body + "&auto=1'>" + recv.name + "</a>";
             if (typeof fn !== 'undefined'){
@@ -641,7 +645,7 @@ io.on('connection', function(socket){
             }
           }
           fs.unlink(files[recv.name].path, function(err){
-            if (err) return console.log(err);
+            if (err) return catchErrorDisplay(err);
           });
           delete files[recv.name];
         });
@@ -666,7 +670,7 @@ io.on('connection', function(socket){
 
   socket.on('update_roomlist', function(recv, fn){
     Room.findById(recv.room, function(err, room){
-      if (err) return console.log(err);
+      if (err) return catchErrorDisplay(err);
       var penpalUid;
       if (String(recv.owner) === String(socket.user)){
         penpalUid = (String(recv.owner) === String(room.users[0])) ? room.users[1] : room.users[0];
@@ -675,7 +679,7 @@ io.on('connection', function(socket){
         penpalUid = recv.owner;
       }
       User.findById(penpalUid, function(err, user){
-        if (err) return console.log(err);
+        if (err) return catchErrorDisplay(err);
         var penpal = {
           'uid': user._id,
           'user': user.user,
@@ -714,13 +718,13 @@ io.on('connection', function(socket){
 
   socket.on('check_room_not_empty', function(recv, fn){
     Room.findOne({users: recv}, function(err, room){
-      if(err) return console.log(err);
+      if(err) return catchErrorDisplay(err);
       if (!room){
         fn(false);
       }
       else {
         Message.find({room: room._id}).exec(function(err, messages){
-          if (err) return console.log(err);
+          if (err) return catchErrorDisplay(err);
           if (messages.length > 0){
             fn(room._id);
           }
@@ -734,7 +738,7 @@ io.on('connection', function(socket){
 
   socket.on('del_conversation', function(recv){
     Message.remove({room: recv.room}).exec(function(err, res){
-      if(err) return console.log(err);
+      if(err) return catchErrorDisplay(err);
       if (res.result && res.result.ok){
         io.to(users[socket.user].uid).emit('chat', JSON.stringify({'action': 'update_del_conversation', 'data': recv.room}));
         if (users[recv.penpal.uid]){
@@ -772,7 +776,7 @@ var server = http.createServer(function(req, res){
       return;
     }
     else if (err){
-      console.log(err);
+      catchErrorDisplay(err);
       return;
     }
 
@@ -796,6 +800,13 @@ var server = http.createServer(function(req, res){
 });
 
 io.attach(server);
+
+function catchErrorDisplay(err){
+  if (err) {
+    try { throw Error(':') } catch(err) { console.log(err); }
+    return console.log(err);
+  }
+}
 
 mongoose.connect('mongodb://localhost/p1chat');
 var mongoDb = mongoose.connection;
